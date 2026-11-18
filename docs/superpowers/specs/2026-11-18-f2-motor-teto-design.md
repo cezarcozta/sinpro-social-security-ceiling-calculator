@@ -376,7 +376,43 @@ Demais casos:
 - divergência de `bpsEfetivo` → aviso;
 - varredura `Number.isInteger` em todo campo `*Centavos`.
 
-## 9. Riscos e pendências conhecidas
+## 9. Disclaimers obrigatórios na interface
+
+Estes são **requisitos de UI**, não sugestões, e valem para a F3 (dashboard) e a F4
+(declaração). Estão neste spec porque é a natureza da saída da F2 que os torna
+necessários: o motor devolve estimativas ao lado de leituras, e meses fora do prazo ao
+lado de meses válidos. Exibir esses números sem qualificação é afirmar mais do que o dado
+sustenta.
+
+Cada um é acionado por um campo da saída, para que a F3 implemente a regra e não dependa
+de alguém lembrar:
+
+| Condição na saída | O que a UI precisa dizer | Onde |
+|---|---|---|
+| `camadas[].lido === false` (CLT, CI-prestador) | O valor em dinheiro é **estimativa**: o CNIS informa a remuneração, não quanto cada fonte descontou. O desconto é simulado pela tabela progressiva. | junto de todo valor em dinheiro dessas camadas |
+| `camadas[].lido === true` (CI próprio / MEI) | Este valor é **lido do extrato** — foi o que o INSS registrou como pago. | junto do valor, distinguindo visualmente do anterior |
+| `baseExcedenteCentavos > 0` | A base excedente é **aritmética exata** (soma menos teto). Só o valor em dinheiro é estimado. | no resumo executivo, separando os dois números |
+| `prescricao.noPrazo === false` | Este mês **já passou do prazo de 5 anos** e não entra no total a pedir. Está listado para conferência, não para pedido. | em cada linha prescrita, e o total prescrito separado do total a pedir |
+| `prescricao.urgente === true` | Este mês prescreve em até 90 dias. | destaque na linha |
+| `achados[].tipo === 'MEI_DAS_INDEVIDO'` | O caminho de restituição é **outro**: Anexo I da IN RFB 2.055/2021, em processo no e-CAC, e não PER/DCOMP Web. Não somar ao total geral. | no achado, fora do total principal |
+| `ignoradasSemTabela.length > 0` | Estas competências **não foram avaliadas** por estarem fora do período coberto. | lista visível, não silenciada |
+| `avisos.length > 0` | Houve linha do extrato que não entendemos. O resultado pode estar incompleto. | aviso de topo, não escondido em detalhe |
+| `decimoTerceiro === true` | O 13º tem **teto próprio**, calculado em separado do salário de dezembro. | na linha do 13º |
+| sempre | O resultado é **estimativa de triagem**, não cálculo oficial nem parecer jurídico ou contábil. Confira com o sindicato antes de levar ao RH ou pedir restituição. | rodapé permanente e no PDF da F4 |
+| sempre | As tabelas de teto de 2022 a 2025 ainda não foram conferidas no DOU (ver §10). | enquanto a pendência de §10 estiver aberta |
+| sempre | Nenhum dado do extrato sai do navegador. | reforço da garantia da F1, que é o que faz o professor subir o arquivo |
+
+Dois princípios por trás da tabela:
+
+- **Nunca um número sozinho.** Todo valor em dinheiro aparece ao lado de sua natureza
+  (estimado ou lido) e de sua elegibilidade (no prazo ou prescrito). Um número solto é o
+  número que o professor leva ao RH.
+- **Falhar aberto, não fechado.** Aviso, competência não avaliada e camada incompleta são
+  exibidos, nunca suprimidos para a tela ficar limpa. A pendência da F1 de "fase de
+  conferência na UI" — mostrar a tabela mês a mês e pedir ao professor que confira contra
+  o PDF antes de usar o número — continua valendo e é o par natural desta seção.
+
+## 10. Riscos e pendências conhecidas
 
 - **Tabelas de 2022 a 2025 vêm de fonte secundária.** 2021 e 2026 foram conferidos direto
   no gov.br, e a fonte secundária bate exatamente nas duas pontas. Conferir os cinco do
@@ -395,7 +431,7 @@ Demais casos:
 - **`Valores Consolidados por Ano Civil`** continua sem uso como checksum, conforme a
   pendência da F1. O motor da F2 seria o consumidor natural dessa conferência.
 
-## 10. Fontes
+## 11. Fontes
 
 Tabelas e tetos:
 
