@@ -69,3 +69,11 @@ export class CnisParseError extends Error {
 
 /** Marca o vínculo como CLT (empregado), único tipo considerado em F1. */
 export const TIPO_FILIADO_CLT = 'Empregado ou Agente Público';
+
+/**
+ * A natureza do vínculo é decidida pelo LAYOUT DA TABELA, não pelo `Tipo Filiado no
+ * Vínculo`: "Contribuinte Individual" aparece tanto em recolhimento próprio quanto em
+ * prestação de serviço, e os dois têm colunas diferentes. O tipo de filiado serve de
+ * conferência, nunca de fonte da verdade.
+ */
+export type NaturezaVinculo = 'CLT' | 'CI_PRESTADOR' | 'CI_PROPRIO';
