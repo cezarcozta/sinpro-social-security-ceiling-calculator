@@ -55,7 +55,7 @@ Não há ambiguidade entre eles: `mapearColunas` exige que a contagem de itens s
 | `src/lib/cnis/parse-cnis.ts` (modificar) | Usa `detectarLayout`; constrói em tipo mutável e finaliza na união; lê as linhas dos dois layouts novos. |
 | `src/lib/cnis/index.ts` (modificar) | Exporta os tipos novos, deixa de exportar `VinculoIgnorado`. |
 | `src/lib/cnis/parse-cnis.test.ts` (modificar) | Migra as asserções de `ignorados` para `natureza` e cobre os vínculos novos. |
-| `src/components/upload-cnis.tsx` (modificar) | Linhas 121, 134, 144-147 leem `extrato.ignorados`. |
+| `src/components/upload-cnis.tsx` (modificar, na Task 2) | Linhas 121, 134, 144-147 leem `extrato.ignorados`. Ajustado no mesmo commit que remove o campo. |
 
 ---
 
@@ -217,6 +217,7 @@ Substitui `ignorados` por `Vinculo.natureza`. **Ainda não lê** as linhas dos l
 - Modify: `src/lib/cnis/types.ts`
 - Modify: `src/lib/cnis/parse-cnis.ts`
 - Modify: `src/lib/cnis/index.ts`
+- Modify: `src/components/upload-cnis.tsx` (linhas 121, 134, 144-147)
 - Test: `src/lib/cnis/parse-cnis.test.ts` (migrar asserções existentes)
 
 **Interfaces:**
@@ -540,6 +541,45 @@ Por fim, antes do `return`, finalize e emita `NATUREZA_INDEFINIDA` para quem fic
 
 `lerLinhaDaTabela` ainda só entende o layout CLT; nesta task ela passa a receber `EmConstrucao` em vez de `Vinculo` e permanece com a lógica atual. As Tasks 3 e 4 a dividem.
 
+**3d.** Em `src/components/upload-cnis.tsx`, o campo `extrato.ignorados` deixou de existir.
+Quem remove o campo conserta quem o usava, no mesmo commit — nenhuma task deixa o build
+quebrado.
+
+Linha 121, a contagem de competências precisa somar as duas listas:
+
+```tsx
+  const competencias = extrato.vinculos.reduce(
+    (total, v) => total + (v.natureza === 'CI_PROPRIO' ? v.contribuicoes.length : v.remuneracoes.length),
+    0,
+  );
+```
+
+Linha 134, troque a métrica de vínculos ignorados por uma de naturezas:
+
+```tsx
+          ['Vínculos lidos', String(extrato.vinculos.length)],
+          ['Vínculos não-CLT', String(extrato.vinculos.filter((v) => v.natureza !== 'CLT').length)],
+```
+
+Linhas 144-147, substitua o aviso de "não considerados" — eles agora são considerados:
+
+```tsx
+      {extrato.vinculos.some((v) => v.natureza !== 'CLT') && (
+        <p className="...">
+          {extrato.vinculos.filter((v) => v.natureza !== 'CLT').length} vínculo(s) de
+          contribuinte individual lido(s) (
+          {extrato.vinculos
+            .filter((v) => v.natureza !== 'CLT')
+            .map((v) => `${v.seq}: ${v.tipoFiliado}`)
+            .join('; ')}
+          ). O cálculo de teto considera todos eles.
+        </p>
+      )}
+```
+
+Mantenha as classes `className` que já estão no arquivo — só o conteúdo muda.
+
+
 **3c.** Em `src/lib/cnis/index.ts`, remova `VinculoIgnorado` da lista de tipos exportados e acrescente os novos:
 
 ```ts
@@ -565,14 +605,14 @@ export type {
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run src/lib/cnis/parse-cnis.test.ts` → Expected: PASS.
-Run: `npx tsc --noEmit` → Expected: erro **esperado** em `src/components/upload-cnis.tsx` (`extrato.ignorados` não existe). Será corrigido na Task 5. Nenhum erro em `src/lib/`.
-
-Se `npm test` falhar em `vitest run` por causa do erro de tipo no componente, confirme que a falha é só esse arquivo e siga.
+Run: `npx tsc --noEmit` → Expected: **zero erros**. Nenhuma task deixa o build quebrado.
+Run: `npm run lint` → Expected: zero erros.
+Run: `npm test` → Expected: PASS, suíte inteira.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/lib/cnis/types.ts src/lib/cnis/parse-cnis.ts src/lib/cnis/index.ts src/lib/cnis/parse-cnis.test.ts
+git add src/lib/cnis/types.ts src/lib/cnis/parse-cnis.ts src/lib/cnis/index.ts src/lib/cnis/parse-cnis.test.ts src/components/upload-cnis.tsx
 git commit -m "refactor: vinculo ganha natureza; ignorados sai do modelo
 
 Os cinco vinculos do extrato passam a existir em \`vinculos\`, cada um com
@@ -581,8 +621,8 @@ conferencia: divergencia entre layout e tipo emite NATUREZA_DIVERGENTE e
 o layout prevalece.
 
 As tabelas dos layouts novos ainda nao sao lidas: as proximas duas tasks
-preenchem o dado. upload-cnis.tsx quebra de proposito e e corrigido na
-task 5.
+preenchem o dado. upload-cnis.tsx e ajustado no mesmo commit, porque quem
+remove o campo conserta quem o usava.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
@@ -920,12 +960,12 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 5: Integridade por vínculo e atualização da UI
+### Task 5: Integridade por vínculo
 
-Fecha a fase: uma asserção que pega perda silenciosa de dado sem precisar prever a causa, e o componente deixa de falar em "ignorados".
+Fecha a fase com uma asserção que pega perda silenciosa de dado sem precisar prever a
+causa. A UI já foi ajustada na Task 2.
 
 **Files:**
-- Modify: `src/components/upload-cnis.tsx` (linhas 121, 134, 144-147)
 - Test: `src/lib/cnis/parse-cnis.test.ts`
 
 **Interfaces:**
@@ -981,59 +1021,21 @@ Acrescente em `src/lib/cnis/parse-cnis.test.ts`:
 Run: `npx vitest run src/lib/cnis/parse-cnis.test.ts -t 'silêncio'`
 Expected: PASS (ver a nota do Step 1).
 
-- [ ] **Step 3: Atualizar a UI**
-
-Em `src/components/upload-cnis.tsx`:
-
-Linha 121, a contagem de competências precisa somar as duas listas:
-
-```tsx
-  const competencias = extrato.vinculos.reduce(
-    (total, v) => total + (v.natureza === 'CI_PROPRIO' ? v.contribuicoes.length : v.remuneracoes.length),
-    0,
-  );
-```
-
-Linha 134, troque a métrica de vínculos ignorados por uma de naturezas:
-
-```tsx
-          ['Vínculos lidos', String(extrato.vinculos.length)],
-          ['Vínculos não-CLT', String(extrato.vinculos.filter((v) => v.natureza !== 'CLT').length)],
-```
-
-Linhas 144-147, substitua o aviso de "não considerados" — eles agora são considerados:
-
-```tsx
-      {extrato.vinculos.some((v) => v.natureza !== 'CLT') && (
-        <p className="...">
-          {extrato.vinculos.filter((v) => v.natureza !== 'CLT').length} vínculo(s) de
-          contribuinte individual lido(s) (
-          {extrato.vinculos
-            .filter((v) => v.natureza !== 'CLT')
-            .map((v) => `${v.seq}: ${v.tipoFiliado}`)
-            .join('; ')}
-          ). O cálculo de teto considera todos eles.
-        </p>
-      )}
-```
-
-Mantenha as classes `className` que já estão no arquivo — só o conteúdo muda.
-
-- [ ] **Step 4: Verificar tipos, lint e suíte**
+- [ ] **Step 3: Verificar tipos, lint e suíte**
 
 Run: `npx tsc --noEmit` → Expected: zero erros.
 Run: `npm run lint` → Expected: zero erros.
 Run: `npm test` → Expected: PASS, suíte inteira.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add src/lib/cnis/parse-cnis.test.ts src/components/upload-cnis.tsx
-git commit -m "feat: integridade por vinculo e UI sem 'ignorados'
+git add src/lib/cnis/parse-cnis.test.ts
+git commit -m "test: integridade de contagem por vinculo
 
 Asserção de contagem por vinculo contra o intervalo de datas: pega perda
-silenciosa de dado sem precisar prever a causa. E o componente deixa de
-dizer que os vinculos nao-CLT nao sao considerados, porque passaram a ser.
+silenciosa de dado sem precisar prever a causa, sem ter que antecipar qual
+seria.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
