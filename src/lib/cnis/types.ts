@@ -4,6 +4,7 @@ export type TextItem = { page: number; x: number; y: number; str: string };
 /** Itens que compartilham a mesma linha visual, ordenados por x. */
 export type Row = { page: number; y: number; items: TextItem[] };
 
+/** Linha das tabelas CLT e de prestador de serviço: só a remuneração. */
 export type Remuneracao = {
   /** "MM/AAAA"; MM pode ser 13 (gratificação natalina). */
   competencia: string;
@@ -11,7 +12,20 @@ export type Remuneracao = {
   indicadores: string[];
 };
 
-export type Vinculo = {
+/**
+ * Linha da tabela de recolhimento próprio. Traz DUAS cifras, e a primeira é o valor
+ * efetivamente pago — diferente de CLT e prestador, onde só há a remuneração e o desconto
+ * tem que ser estimado.
+ */
+export type Contribuicao = {
+  competencia: string;
+  dataPgto?: string;
+  contribuicaoCentavos: number;
+  salarioContribuicaoCentavos: number;
+  indicadores: string[];
+};
+
+type VinculoBase = {
   seq: number;
   nit?: string;
   /** Pode ser CNPJ ("12.345.678/0001-95") ou código CEI/CNO ("98.765.432"). String opaca. */
@@ -22,12 +36,22 @@ export type Vinculo = {
   dataInicio?: string;
   dataFim?: string;
   ultRemun?: string;
-  remuneracoes: Remuneracao[];
   /** Indicadores de nível de vínculo (ex.: "IREM-INDPEND"). Ausente quando não há. */
   indicadores?: string[];
 };
 
-export type VinculoIgnorado = { seq: number; tipoFiliado: string; motivo: 'NAO_CLT' };
+export type VinculoRemunerado = VinculoBase & {
+  natureza: 'CLT' | 'CI_PRESTADOR';
+  remuneracoes: Remuneracao[];
+};
+
+export type VinculoContribuinte = VinculoBase & {
+  natureza: 'CI_PROPRIO';
+  contribuicoes: Contribuicao[];
+};
+
+/** União discriminada por `natureza`: a F2 percorre as camadas com switch exaustivo. */
+export type Vinculo = VinculoRemunerado | VinculoContribuinte;
 
 export type Filiado = {
   nome?: string;
@@ -41,10 +65,16 @@ export type CnisExtrato = {
   filiado: Filiado;
   geradoEm?: string;
   vinculos: Vinculo[];
-  ignorados: VinculoIgnorado[];
 };
 
-export type WarningCode = 'LAYOUT_DESCONHECIDO' | 'CELULA_ORFA' | 'COMPETENCIA_DUPLICADA';
+export type WarningCode =
+  | 'LAYOUT_DESCONHECIDO'
+  | 'CELULA_ORFA'
+  | 'COMPETENCIA_DUPLICADA'
+  /** Vínculo sem tabela de competências: a natureza foi inferida do tipo de filiado. */
+  | 'NATUREZA_INDEFINIDA'
+  /** O layout da tabela e o tipo de filiado discordam. O layout vence; o aviso registra. */
+  | 'NATUREZA_DIVERGENTE';
 
 export type ParseWarning = {
   codigo: WarningCode;

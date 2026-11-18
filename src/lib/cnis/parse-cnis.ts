@@ -1,26 +1,29 @@
 import { agruparEmLinhas } from './rows';
 import { classificar, extrairCamposFiliado } from './sections';
-import { celulasPorGrupo, colunasDoCabecalho, mapearColunas, parseValorCentavos, type Coluna } from './table';
+import { detectarLayout } from './layouts';
+import { celulasPorGrupo, colunasDoCabecalho, parseValorCentavos, type Coluna } from './table';
 import { extrairTextLayer } from './text-layer';
 import {
   CnisParseError,
   TIPO_FILIADO_CLT,
   type CnisExtrato,
+  type Contribuicao,
+  type NaturezaVinculo,
   type ParseResult,
   type ParseWarning,
+  type Remuneracao,
   type Row,
   type TextItem,
   type Vinculo,
 } from './types';
 
-const COLUNAS_REMUNERACAO = ['Competência', 'Remuneração', 'Indicadores'];
 const COMPETENCIA = /^(0[1-9]|1[0-3])\/\d{4}$/;
 const PARECE_COMPETENCIA = /\d{2}\/\d{4}/;
 const PARECE_VALOR = /\d,\d{2}/;
 const MARCA_CNIS = 'CNIS - Cadastro Nacional de Informações Sociais';
 
 /** Rótulo da coluna do vínculo -> campo do objeto Vinculo. */
-const CAMPOS_VINCULO: Record<string, keyof Vinculo> = {
+const CAMPOS_VINCULO: Record<string, keyof EmConstrucao> = {
   'Seq.': 'seq',
   NIT: 'nit',
   'Código Emp.': 'codigoEmp',
@@ -35,13 +38,8 @@ const CAMPOS_VINCULO: Record<string, keyof Vinculo> = {
   Indicadores: 'indicadores',
 };
 
-/**
- * Tipos de filiado RECONHECIDOS. Só estes dois conjuntos têm destino certo: CLT entra em
- * `vinculos`; os não-CLT entram em `ignorados` (exclusão deliberada de produto). Qualquer
- * outra grafia é "não soubemos ler" e vira LAYOUT_DESCONHECIDO, nunca descarte silencioso.
- * Decisão pendente: quais outras variações o CNIS usa de fato (ver report da revisão final).
- */
 const TIPOS_CLT: ReadonlySet<string> = new Set([TIPO_FILIADO_CLT]);
+/** Grafias de tipo de filiado que o CNIS usa fora do RGPS-empregado. Só conferência. */
 const TIPOS_NAO_CLT: ReadonlySet<string> = new Set([
   'Contribuinte Individual',
   'Trabalhador Avulso',
@@ -49,6 +47,43 @@ const TIPOS_NAO_CLT: ReadonlySet<string> = new Set([
   'Segurado Especial',
   'Facultativo',
 ]);
+
+/**
+ * A natureza só é conhecida no cabeçalho da TABELA, que vem depois da linha do vínculo.
+ * Então o vínculo é construído mutável, com as duas listas, e finalizado na união no fim
+ * da varredura.
+ */
+type EmConstrucao = {
+  seq: number;
+  nit?: string;
+  codigoEmp?: string;
+  origem?: string;
+  matricula?: string;
+  tipoFiliado: string;
+  dataInicio?: string;
+  dataFim?: string;
+  ultRemun?: string;
+  indicadores?: string[];
+  natureza: NaturezaVinculo | null;
+  pagina: number;
+  remuneracoes: Remuneracao[];
+  contribuicoes: Contribuicao[];
+};
+
+/** Fallback quando o vínculo não tem tabela: o tipo de filiado é o que resta. */
+const naturezaPeloTipo = (tipoFiliado: string): NaturezaVinculo =>
+  TIPOS_CLT.has(tipoFiliado) ? 'CLT' : 'CI_PROPRIO';
+
+function finalizar(v: EmConstrucao): Vinculo {
+  const { natureza, remuneracoes, contribuicoes, ...resto } = v;
+  // `pagina` só serve ao aviso NATUREZA_INDEFINIDA; não faz parte do Vinculo público.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { pagina: _pagina, ...base } = resto;
+  const definida = natureza ?? naturezaPeloTipo(v.tipoFiliado);
+  return definida === 'CI_PROPRIO'
+    ? { ...base, natureza: 'CI_PROPRIO', contribuicoes }
+    : { ...base, natureza: definida, remuneracoes };
+}
 
 /** A quebra de linha do PDF não pode decidir a classificação: normaliza espaços antes de comparar. */
 const normalizarTipo = (tipo: string): string => tipo.replace(/\s+/g, ' ').trim();
@@ -70,13 +105,15 @@ export function montarExtrato(itens: TextItem[]): ParseResult {
     );
   }
 
-  const extrato: CnisExtrato = { filiado: {}, vinculos: [], ignorados: [] };
+  const extrato: CnisExtrato = { filiado: {}, vinculos: [] };
+  const construindo: EmConstrucao[] = [];
   const warnings: ParseWarning[] = [];
   let estado: Estado = { nome: 'inicio' };
-  let vinculo: Vinculo | null = null;
+  // `as`: o TS não enxerga as atribuições feitas dentro do closure `fecharPendente`.
+  let vinculo = null as EmConstrucao | null;
   // O tipo de filiado pode vir quebrado em duas linhas ("Empregado ou Agente" + "Público"),
   // então o vínculo só é classificado quando a continuação já foi lida.
-  let pendente: { vinculo: Vinculo; pagina: number } | null = null;
+  let pendente: { vinculo: EmConstrucao; pagina: number } | null = null;
 
   const avisar = (codigo: ParseWarning['codigo'], pagina: number, detalhe: string) =>
     warnings.push({ codigo, pagina, seq: vinculo?.seq, detalhe });
@@ -87,11 +124,9 @@ export function montarExtrato(itens: TextItem[]): ParseResult {
     pendente = null;
     const tipoFiliado = normalizarTipo(novo.tipoFiliado);
     novo.tipoFiliado = tipoFiliado;
-    if (TIPOS_CLT.has(tipoFiliado)) {
+    if (TIPOS_CLT.has(tipoFiliado) || TIPOS_NAO_CLT.has(tipoFiliado)) {
       vinculo = novo;
-      extrato.vinculos.push(novo);
-    } else if (TIPOS_NAO_CLT.has(tipoFiliado)) {
-      extrato.ignorados.push({ seq: novo.seq, tipoFiliado, motivo: 'NAO_CLT' });
+      construindo.push(novo);
     } else {
       warnings.push({
         codigo: 'LAYOUT_DESCONHECIDO',
@@ -140,7 +175,7 @@ export function montarExtrato(itens: TextItem[]): ParseResult {
     // tipo === 'dados'
     if (estado.nome === 'aguardando-valores-vinculo') {
       const [celulas = {}] = celulasPorGrupo(linha, estado.colunas);
-      const novo = construirVinculo(celulas);
+      const novo = construirVinculo(celulas, linha.page);
       // seq e tipo de filiado são obrigatórios: sem eles não há chave de identificação nem classificação.
       if (novo.tipoFiliado === '' || novo.seq === 0) {
         avisar(
@@ -177,27 +212,57 @@ export function montarExtrato(itens: TextItem[]): ParseResult {
     }
 
     if (estado.nome === 'aguardando-cabecalho-tabela') {
-      const colunas = mapearColunas(linha, COLUNAS_REMUNERACAO);
-      if (!colunas) {
+      const detectado = detectarLayout(linha);
+      if (!detectado) {
         avisar('LAYOUT_DESCONHECIDO', linha.page, `Cabeçalho de tabela não reconhecido: "${linha.items.map((i) => i.str).join(' | ')}"`);
         estado = { nome: 'pulando' };
         continue;
       }
-      estado = { nome: 'tabela', colunas };
+      if (vinculo) {
+        vinculo.natureza = detectado.natureza;
+        const ehCLT = TIPOS_CLT.has(vinculo.tipoFiliado);
+        if (ehCLT !== (detectado.natureza === 'CLT')) {
+          avisar(
+            'NATUREZA_DIVERGENTE',
+            linha.page,
+            `Layout de tabela ${detectado.natureza} com tipo de filiado "${vinculo.tipoFiliado}". O layout prevalece.`,
+          );
+        }
+      }
+      estado = { nome: 'tabela', colunas: detectado.colunas };
       continue;
     }
 
-    if (estado.nome === 'tabela' && vinculo) {
+    // Só o layout CLT é lido por enquanto; as tabelas dos outros dois entram nas Tasks 3 e 4.
+    if (estado.nome === 'tabela' && vinculo && vinculo.natureza === 'CLT') {
       lerLinhaDaTabela(linha, estado.colunas, vinculo, avisar);
     }
   }
 
   fecharPendente();
+  for (const v of construindo) {
+    if (v.natureza === null) {
+      warnings.push({
+        codigo: 'NATUREZA_INDEFINIDA',
+        pagina: v.pagina,
+        seq: v.seq,
+        detalhe: `Vínculo ${v.seq} ("${v.tipoFiliado}") não tem tabela de competências; natureza inferida do tipo de filiado.`,
+      });
+    }
+  }
+  extrato.vinculos = construindo.map(finalizar);
   return { extrato, warnings };
 }
 
-function construirVinculo(celulas: Record<string, string>): Vinculo {
-  const vinculo: Vinculo = { seq: 0, tipoFiliado: '', remuneracoes: [] };
+function construirVinculo(celulas: Record<string, string>, pagina: number): EmConstrucao {
+  const vinculo: EmConstrucao = {
+    seq: 0,
+    tipoFiliado: '',
+    natureza: null,
+    pagina,
+    remuneracoes: [],
+    contribuicoes: [],
+  };
   for (const [rotulo, valor] of Object.entries(celulas)) {
     switch (CAMPOS_VINCULO[rotulo]) {
       case 'seq':
@@ -245,7 +310,7 @@ function separarIndicadores(texto: string): string[] {
 }
 
 /** O campo só passa a existir quando há ao menos um indicador. */
-function acrescentarIndicadores(vinculo: Vinculo, texto: string): void {
+function acrescentarIndicadores(vinculo: EmConstrucao, texto: string): void {
   const novos = separarIndicadores(texto);
   if (novos.length > 0) vinculo.indicadores = [...(vinculo.indicadores ?? []), ...novos];
 }
@@ -253,7 +318,7 @@ function acrescentarIndicadores(vinculo: Vinculo, texto: string): void {
 function lerLinhaDaTabela(
   linha: Row,
   colunas: Coluna[],
-  vinculo: Vinculo,
+  vinculo: EmConstrucao,
   avisar: (codigo: ParseWarning['codigo'], pagina: number, detalhe: string) => void,
 ): void {
   const grupos = celulasPorGrupo(linha, colunas);
