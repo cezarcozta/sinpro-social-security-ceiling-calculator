@@ -4,6 +4,15 @@ export type TextItem = { page: number; x: number; y: number; str: string };
 /** Itens que compartilham a mesma linha visual, ordenados por x. */
 export type Row = { page: number; y: number; items: TextItem[] };
 
+/**
+ * Linha das tabelas CLT e de prestador de serviço: só a remuneração.
+ *
+ * ATENÇÃO para quem consome: a lista pode conter a MESMA competência mais de uma vez. O
+ * parser não descarta linha repetida — registra `COMPETENCIA_DUPLICADA` e entrega as duas,
+ * porque descartar seria perder dinheiro se a repetição for legítima (no recolhimento
+ * próprio, duas guias no mesmo mês somam de verdade). Quem calcula o teto decide por
+ * natureza: somar (CI_PROPRIO) ou tratar como artefato de leitura (CLT/CI_PRESTADOR).
+ */
 export type Remuneracao = {
   /** "MM/AAAA"; MM pode ser 13 (gratificação natalina). */
   competencia: string;
@@ -11,7 +20,20 @@ export type Remuneracao = {
   indicadores: string[];
 };
 
-export type Vinculo = {
+/**
+ * Linha da tabela de recolhimento próprio. Traz DUAS cifras, e a primeira é o valor
+ * efetivamente pago — diferente de CLT e prestador, onde só há a remuneração e o desconto
+ * tem que ser estimado.
+ */
+export type Contribuicao = {
+  competencia: string;
+  dataPgto?: string;
+  contribuicaoCentavos: number;
+  salarioContribuicaoCentavos: number;
+  indicadores: string[];
+};
+
+type VinculoBase = {
   seq: number;
   nit?: string;
   /** Pode ser CNPJ ("12.345.678/0001-95") ou código CEI/CNO ("98.765.432"). String opaca. */
@@ -22,12 +44,22 @@ export type Vinculo = {
   dataInicio?: string;
   dataFim?: string;
   ultRemun?: string;
-  remuneracoes: Remuneracao[];
   /** Indicadores de nível de vínculo (ex.: "IREM-INDPEND"). Ausente quando não há. */
   indicadores?: string[];
 };
 
-export type VinculoIgnorado = { seq: number; tipoFiliado: string; motivo: 'NAO_CLT' };
+export type VinculoRemunerado = VinculoBase & {
+  natureza: 'CLT' | 'CI_PRESTADOR';
+  remuneracoes: Remuneracao[];
+};
+
+export type VinculoContribuinte = VinculoBase & {
+  natureza: 'CI_PROPRIO';
+  contribuicoes: Contribuicao[];
+};
+
+/** União discriminada por `natureza`: a F2 percorre as camadas com switch exaustivo. */
+export type Vinculo = VinculoRemunerado | VinculoContribuinte;
 
 export type Filiado = {
   nome?: string;
@@ -41,10 +73,34 @@ export type CnisExtrato = {
   filiado: Filiado;
   geradoEm?: string;
   vinculos: Vinculo[];
-  ignorados: VinculoIgnorado[];
 };
 
-export type WarningCode = 'LAYOUT_DESCONHECIDO' | 'CELULA_ORFA' | 'COMPETENCIA_DUPLICADA';
+export type WarningCode =
+  | 'LAYOUT_DESCONHECIDO'
+  | 'CELULA_ORFA'
+  | 'COMPETENCIA_DUPLICADA'
+  /** Vínculo sem tabela de competências: a natureza foi inferida do tipo de filiado. */
+  | 'NATUREZA_INDEFINIDA'
+  /** O layout da tabela e o tipo de filiado discordam. O layout vence; o aviso registra. */
+  | 'NATUREZA_DIVERGENTE'
+  /**
+   * O vínculo publicou duas tabelas de layouts diferentes. O modelo dá uma natureza só a
+   * cada vínculo, então a lista da primeira não entra no resultado — o aviso diz quais
+   * competências ficaram de fora, em vez de deixá-las evaporar.
+   */
+  | 'TABELA_DESCARTADA'
+  /**
+   * A tabela continuou sem repetir o cabeçalho de colunas. As colunas da tabela anterior
+   * do mesmo vínculo foram reaproveitadas para não perder as competências; o aviso
+   * registra que a leitura dessas linhas se apoiou na geometria da página anterior.
+   */
+  | 'CABECALHO_REAPROVEITADO'
+  /**
+   * Bloco que não pôde ser lido (vínculo ilegível, cabeçalho de tabela desconhecido) e as
+   * competências que ficaram de fora com ele. O aviso anterior diz a causa; este diz o
+   * tamanho do prejuízo, em vez de deixar o usuário supor que não havia nada ali.
+   */
+  | 'BLOCO_PULADO';
 
 export type ParseWarning = {
   codigo: WarningCode;
@@ -69,3 +125,11 @@ export class CnisParseError extends Error {
 
 /** Marca o vínculo como CLT (empregado), único tipo considerado em F1. */
 export const TIPO_FILIADO_CLT = 'Empregado ou Agente Público';
+
+/**
+ * A natureza do vínculo é decidida pelo LAYOUT DA TABELA, não pelo `Tipo Filiado no
+ * Vínculo`: "Contribuinte Individual" aparece tanto em recolhimento próprio quanto em
+ * prestação de serviço, e os dois têm colunas diferentes. O tipo de filiado serve de
+ * conferência, nunca de fonte da verdade.
+ */
+export type NaturezaVinculo = 'CLT' | 'CI_PRESTADOR' | 'CI_PROPRIO';

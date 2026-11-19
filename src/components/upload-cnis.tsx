@@ -118,7 +118,10 @@ function Resultado({
   onBaixar: (resultado: ParseResult) => void;
 }) {
   const { extrato, warnings } = resultado;
-  const competencias = extrato.vinculos.reduce((total, v) => total + v.remuneracoes.length, 0);
+  const competencias = extrato.vinculos.reduce(
+    (total, v) => total + (v.natureza === 'CI_PROPRIO' ? v.contribuicoes.length : v.remuneracoes.length),
+    0,
+  );
   const comIndicadores = extrato.vinculos.filter((v) => (v.indicadores?.length ?? 0) > 0);
 
   return (
@@ -130,8 +133,8 @@ function Resultado({
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           ['Filiado', extrato.filiado.nome ?? '—'],
-          ['Vínculos CLT', String(extrato.vinculos.length)],
-          ['Vínculos ignorados', String(extrato.ignorados.length)],
+          ['Vínculos lidos', String(extrato.vinculos.length)],
+          ['Vínculos não-CLT', String(extrato.vinculos.filter((v) => v.natureza !== 'CLT').length)],
           ['Competências lidas', String(competencias)],
         ].map(([rotulo, valor]) => (
           <div key={rotulo} className="rounded-md border border-neutral-300 p-3">
@@ -141,11 +144,15 @@ function Resultado({
         ))}
       </dl>
 
-      {extrato.ignorados.length > 0 && (
+      {extrato.vinculos.some((v) => v.natureza !== 'CLT') && (
         <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          {extrato.ignorados.length} vínculo(s) não considerado(s) nesta versão (
-          {extrato.ignorados.map((i) => `${i.seq}: ${i.tipoFiliado}`).join('; ')}). O cálculo
-          cobre apenas vínculos de empregado (CLT).
+          {extrato.vinculos.filter((v) => v.natureza !== 'CLT').length} vínculo(s) de
+          contribuinte individual lido(s) (
+          {extrato.vinculos
+            .filter((v) => v.natureza !== 'CLT')
+            .map((v) => `${v.seq}: ${v.tipoFiliado}`)
+            .join('; ')}
+          ). O cálculo de teto considera todos eles.
         </p>
       )}
 
