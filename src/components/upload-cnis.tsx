@@ -101,7 +101,13 @@ export function UploadCnis() {
       )}
 
       {situacao.estado === 'pronto' && (
-        <TelasDoResultado parse={situacao.parse} teto={situacao.teto} />
+        <TelasDoResultado
+          parse={situacao.parse}
+          teto={situacao.teto}
+          // Descarta o `ParseResult` (nome, CPF, NIT) junto com as marcas de conferência:
+          // desmontar `TelasDoResultado` zera o estado dela.
+          onOutroExtrato={() => setSituacao({ estado: 'inicial' })}
+        />
       )}
     </div>
   );

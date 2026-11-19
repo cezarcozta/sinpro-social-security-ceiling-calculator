@@ -122,3 +122,34 @@ describe('avisosExibiveis', () => {
     expect(avisosExibiveis(PARSE_VAZIO, TETO_VAZIO)).toEqual([]);
   });
 });
+
+describe('avisosExibiveis — correções da revisão final', () => {
+  it('marca o aviso desconhecido como não reconhecido, para a tela mostrar o código', () => {
+    const teto: ResultadoTeto = {
+      ...TETO_VAZIO,
+      avisos: [{ codigo: 'FUTURO_X', competencia: '01/2026', detalhe: 'd' } as unknown as AvisoTeto],
+    };
+    expect(avisosExibiveis(PARSE_VAZIO, teto)[0].conhecido).toBe(false);
+    const conhecido: ResultadoTeto = {
+      ...TETO_VAZIO,
+      avisos: [{ codigo: 'BASE_AUSENTE', competencia: '01/2026', detalhe: 'd' }],
+    };
+    expect(avisosExibiveis(PARSE_VAZIO, conhecido)[0].conhecido).toBe(true);
+  });
+
+  it('avisa quando a data do aparelho está fora do período das tabelas de teto', () => {
+    const adiantado = avisosExibiveis(PARSE_VAZIO, { ...TETO_VAZIO, dataReferencia: '2099-01-01' });
+    expect(adiantado[0].codigo).toBe('DATA_SUSPEITA');
+    expect(adiantado[0].frase).toMatch(/data do seu (aparelho|dispositivo)/i);
+    expect(adiantado[0].gravidade).toBe('alta');
+
+    const atrasado = avisosExibiveis(PARSE_VAZIO, { ...TETO_VAZIO, dataReferencia: '2015-06-01' });
+    expect(atrasado[0].codigo).toBe('DATA_SUSPEITA');
+  });
+
+  it('data dentro do período coberto não gera aviso', () => {
+    expect(avisosExibiveis(PARSE_VAZIO, { ...TETO_VAZIO, dataReferencia: '2026-11-19' })).toEqual(
+      [],
+    );
+  });
+});

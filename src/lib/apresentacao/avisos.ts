@@ -1,5 +1,5 @@
 import type { ParseResult, WarningCode } from '@/lib/cnis';
-import type { CodigoAvisoTeto, ResultadoTeto } from '@/lib/teto';
+import { VIGENCIAS, type CodigoAvisoTeto, type ResultadoTeto } from '@/lib/teto';
 
 /**
  * Avisos das três camadas (parser, motor, indicadores do próprio INSS) traduzidos para
@@ -27,6 +27,12 @@ export type AvisoExibivel = {
   contexto?: string;
   gravidade: Gravidade;
   origem: Origem;
+  /**
+   * `false` = código que esta versão da tela não conhece. A tela então **exibe o código
+   * cru** junto da frase genérica (§6.5 do design da F3): sem isso, um motor mais novo que a
+   * tela produziria um aviso impossível de reportar ao sindicato.
+   */
+  conhecido: boolean;
 };
 
 /**
@@ -113,15 +119,53 @@ const GENERICO = {
 const PESO: Record<Gravidade, number> = { alta: 0, media: 1 };
 
 /** Ordem estável: gravidade alta primeiro, e dentro da gravidade a ordem de entrada. */
+/** Primeira e última competência com tabela de teto, em meses desde o ano 0. */
+const PRIMEIRA_VIGENCIA = (() => {
+  const [ano, mes] = VIGENCIAS[0].vigencia.split('-');
+  return Number(ano) * 12 + Number(mes);
+})();
+const ULTIMA_VIGENCIA = (() => {
+  const [ano, mes] = VIGENCIAS[VIGENCIAS.length - 1].vigencia.split('-');
+  return Number(ano) * 12 + Number(mes);
+})();
+/** Folga depois da última tabela: o ano corrente inteiro, até a portaria seguinte sair. */
+const FOLGA_EM_MESES = 12;
+
+/**
+ * A data de referência vem do relógio do aparelho, e o motor decide prescrição com ela. Com
+ * o relógio anos à frente, tudo aparece prescrito e o professor conclui que não tem nada a
+ * pedir; anos atrás, mês já prescrito entra no total e ele leva ao e-CAC um pedido morto.
+ * Nenhum dos dois é visível sem este aviso.
+ */
+function dataImplausivel(dataReferencia: string): boolean {
+  const [ano, mes] = dataReferencia.split('-');
+  const ordinal = Number(ano) * 12 + Number(mes);
+  return ordinal < PRIMEIRA_VIGENCIA || ordinal > ULTIMA_VIGENCIA + FOLGA_EM_MESES;
+}
+
 export function avisosExibiveis(parse: ParseResult, teto: ResultadoTeto): AvisoExibivel[] {
   const lista: AvisoExibivel[] = [];
 
+  if (dataImplausivel(teto.dataReferencia)) {
+    lista.push({
+      codigo: 'DATA_SUSPEITA',
+      frase:
+        'A data do seu aparelho está fora do período que esta calculadora cobre. Os prazos de cinco anos foram calculados com ela, então podem estar errados — confira a data e a hora do aparelho e leia o extrato de novo.',
+      gravidade: 'alta',
+      conhecido: true,
+      origem: 'motor',
+      detalhe: `data usada no cálculo: ${teto.dataReferencia}`,
+    });
+  }
+
   for (const aviso of parse.warnings) {
-    const { frase, gravidade } = FRASES[aviso.codigo] ?? GENERICO;
+    const conhecida = FRASES[aviso.codigo];
+    const { frase, gravidade } = conhecida ?? GENERICO;
     lista.push({
       codigo: aviso.codigo,
       frase,
       gravidade,
+      conhecido: conhecida !== undefined,
       origem: 'parser',
       detalhe: aviso.detalhe,
       contexto:
@@ -132,11 +176,13 @@ export function avisosExibiveis(parse: ParseResult, teto: ResultadoTeto): AvisoE
   }
 
   for (const aviso of teto.avisos) {
-    const { frase, gravidade } = FRASES[aviso.codigo] ?? GENERICO;
+    const conhecida = FRASES[aviso.codigo];
+    const { frase, gravidade } = conhecida ?? GENERICO;
     lista.push({
       codigo: aviso.codigo,
       frase,
       gravidade,
+      conhecido: conhecida !== undefined,
       origem: 'motor',
       detalhe: aviso.detalhe,
       contexto: `competência ${aviso.competencia}`,
@@ -170,6 +216,7 @@ export function avisosExibiveis(parse: ParseResult, teto: ResultadoTeto): AvisoE
       frase:
         'O INSS marcou pendência em partes do seu extrato. Isso pode afetar os valores registrados — vale conferir com o sindicato.',
       gravidade: 'media',
+      conhecido: true,
       origem: 'inss',
       detalhe: marcas.join('; '),
     });

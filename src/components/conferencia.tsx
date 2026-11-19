@@ -7,6 +7,7 @@ import { fontesPorCompetencia, type FontePagadora } from '@/lib/apresentacao/fon
 import { SINDICATO } from '@/lib/apresentacao/sindicato';
 import type { Marca, Marcas } from '@/lib/apresentacao/veredito';
 import { Dinheiro } from './dinheiro';
+import { Rodape } from './rodape';
 
 /**
  * A tela de conferência: mês a mês, contra o PDF.
@@ -267,6 +268,8 @@ export function Conferencia({
           <p className="mt-1 text-sm">{teto.ignoradasSemTabela.join(', ')}</p>
         </section>
       )}
+
+      <Rodape />
 
       <button
         type="button"

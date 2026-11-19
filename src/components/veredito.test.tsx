@@ -130,3 +130,72 @@ describe('Veredito — caminho para a conferência', () => {
     expect(screen.queryByRole('button', { name: /mês a mês/i })).toBeNull();
   });
 });
+
+describe('Veredito — correções da revisão final', () => {
+  function semPrazo(): ResultadoTeto {
+    // todo mês com valor já prescrito: nada a pedir, mas há prescrito
+    return {
+      ...RESULTADO_GATILHOS,
+      competencias: RESULTADO_GATILHOS.competencias.map((c) => ({
+        ...c,
+        prescricao: { ...c.prescricao, noPrazo: false, urgente: false },
+      })),
+      resumo: { ...RESULTADO_GATILHOS.resumo, totalAPedirCentavos: 0, totalPrescritoCentavos: 23030 },
+    };
+  }
+
+  it('não imprime "R$ 0,00" rotulado "no prazo" quando não há mês no prazo', () => {
+    montar(semPrazo(), PARSE_LIMPO);
+    expect(screen.queryByText('R$ 0,00')).toBeNull();
+    expect(screen.getByText(/nenhum mês dentro do prazo/i)).toBeTruthy();
+  });
+
+  it('lista o mês contestado e reetiqueta o total como "pelos meses que você confirmou"', () => {
+    montar(RESULTADO_GATILHOS, PARSE_GATILHOS, { '08/2024': 'naoBate' });
+    expect(screen.getByText(/pelos meses que você confirmou/i)).toBeTruthy();
+    // string exata: a frase do aviso do INSS também contém "conferir com o sindicato"
+    const conferir = screen.getByText('Conferir com o sindicato').closest('div')!;
+    expect(conferir.textContent).toContain('08/2024');
+  });
+
+  it('o bloco do acumulado não desaparece quando todo mês com valor foi contestado', () => {
+    const marcas = Object.fromEntries(
+      RESULTADO_GATILHOS.competencias
+        .filter((c) => c.retidoAMaiorCentavos > 0)
+        .map((c) => [c.competencia, 'naoBate' as const]),
+    );
+    montar(RESULTADO_GATILHOS, PARSE_GATILHOS, marcas);
+    const conferir = screen.getByText('Conferir com o sindicato').closest('div')!;
+    expect(conferir.textContent).toContain('12/2021');
+    expect(conferir.textContent).toContain('08/2024');
+  });
+
+  it('traz os dois contadores do resumo executivo da AGENTS.md', () => {
+    montar();
+    expect(
+      screen.getByText('Meses com múltiplos vínculos identificados:').nextElementSibling
+        ?.textContent,
+    ).toBe('6');
+    expect(
+      screen.getByText('Meses com contribuição acima do teto:').nextElementSibling?.textContent,
+    ).toBe('5');
+  });
+});
+
+describe('Veredito — aviso com código desconhecido', () => {
+  it('mostra o código cru de um aviso que a tela não conhece', () => {
+    const teto: ResultadoTeto = {
+      ...RESULTADO_VAZIO,
+      avisos: [
+        { codigo: 'FUTURO_X', competencia: '01/2026', detalhe: 'linha estranha' } as never,
+      ],
+    };
+    montar(teto, PARSE_LIMPO);
+    expect(screen.getByRole('alert').textContent).toContain('FUTURO_X');
+  });
+
+  it('não polui a tela com o código de um aviso que a tela conhece', () => {
+    montar(RESULTADO_GATILHOS, PARSE_GATILHOS);
+    expect(screen.getByRole('alert').textContent).not.toContain('BASE_AUSENTE');
+  });
+});
