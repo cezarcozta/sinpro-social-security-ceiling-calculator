@@ -1,3 +1,5 @@
+import type { NaturezaVinculo } from '../cnis/types';
+
 /**
  * Tipos do motor de cálculo de teto (F2).
  *
@@ -36,4 +38,18 @@ export type Prescricao = {
   noPrazo: boolean;
   diasRestantes: number;
   urgente: boolean;
+};
+
+/**
+ * Uma camada da cascata. `lido` é a assimetria da §2.3 ficando visível: `true` = valor
+ * escrito no extrato (recolhimento próprio), `false` = desconto simulado pela tabela
+ * progressiva (CLT e prestador, onde o CNIS só informa a remuneração). A F3 usa isso para
+ * rotular confiança — nunca um número sozinho.
+ */
+export type Camada = {
+  natureza: NaturezaVinculo;
+  baseCentavos: number;
+  retidoCentavos: number;
+  devidoCentavos: number;
+  lido: boolean;
 };
