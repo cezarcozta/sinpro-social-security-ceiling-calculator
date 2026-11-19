@@ -132,6 +132,77 @@ describe('montarExtrato sobre o extrato de exemplo', () => {
     expect(v5.remuneracoes.filter((r) => r.valorCentavos === 392000)).toHaveLength(10);
   });
 
+  it('lê as contribuições do vínculo 2 com as duas cifras', () => {
+    const { extrato } = montarExtrato(itens);
+    const v2 = extrato.vinculos.find((v) => v.seq === 2)!;
+    expect(v2.natureza).toBe('CI_PROPRIO');
+    if (v2.natureza !== 'CI_PROPRIO') throw new Error('natureza inesperada');
+    expect(v2.contribuicoes).toHaveLength(5);
+    expect(v2.contribuicoes[0]).toEqual({
+      competencia: '10/2010',
+      dataPgto: '22/09/2011',
+      contribuicaoCentavos: 5225,
+      salarioContribuicaoCentavos: 104500,
+      indicadores: ['IREC-LC123', 'IREC-MEI'],
+    });
+    expect(v2.contribuicoes.map((c) => c.competencia)).toEqual([
+      '10/2010', '11/2010', '12/2010', '01/2011', '02/2011',
+    ]);
+  });
+
+  it('lê as 14 contribuições do vínculo 3', () => {
+    const { extrato } = montarExtrato(itens);
+    const v3 = extrato.vinculos.find((v) => v.seq === 3)!;
+    if (v3.natureza !== 'CI_PROPRIO') throw new Error('natureza inesperada');
+    expect(v3.contribuicoes).toHaveLength(14);
+    expect(v3.contribuicoes.at(-1)).toEqual({
+      competencia: '11/2012',
+      dataPgto: '12/12/2012',
+      contribuicaoCentavos: 6060,
+      salarioContribuicaoCentavos: 121200,
+      indicadores: ['IREC-LC123', 'IREC-MEI'],
+    });
+  });
+
+  it('a competência 01/2011 tem base proporcional e a célula de indicadores quebrada em duas linhas', () => {
+    const { extrato, warnings } = montarExtrato(itens);
+    const v2 = extrato.vinculos.find((v) => v.seq === 2)!;
+    if (v2.natureza !== 'CI_PROPRIO') throw new Error('natureza inesperada');
+    const c = v2.contribuicoes.find((x) => x.competencia === '01/2011')!;
+    // No PDF a célula de indicadores desta linha ocupa duas linhas visuais, centradas na
+    // linha de dados: "PSC-MEN-SM-EC103," acima e "IREC-LC123, IREC-MEI" abaixo.
+    expect(c).toEqual({
+      competencia: '01/2011',
+      dataPgto: '16/06/2015',
+      contribuicaoCentavos: 3020,
+      salarioContribuicaoCentavos: 60400,
+      indicadores: ['PSC-MEN-SM-EC103', 'IREC-LC123', 'IREC-MEI'],
+    });
+    expect(warnings).toEqual([]);
+  });
+
+  it('a continuação de indicadores não vaza para a competência do grupo vizinho', () => {
+    const { extrato } = montarExtrato(itens);
+    const v2 = extrato.vinculos.find((v) => v.seq === 2)!;
+    if (v2.natureza !== 'CI_PROPRIO') throw new Error('natureza inesperada');
+    // 02/2011 está no grupo de colunas ao lado, na mesma linha de dados que 01/2011.
+    expect(v2.contribuicoes.find((x) => x.competencia === '02/2011')!.indicadores).toEqual([
+      'IREC-LC123',
+      'IREC-MEI',
+    ]);
+  });
+
+  it('toda contribuição lida é inteira em centavos', () => {
+    const { extrato } = montarExtrato(itens);
+    for (const v of extrato.vinculos) {
+      if (v.natureza !== 'CI_PROPRIO') continue;
+      for (const c of v.contribuicoes) {
+        expect(Number.isInteger(c.contribuicaoCentavos)).toBe(true);
+        expect(Number.isInteger(c.salarioContribuicaoCentavos)).toBe(true);
+      }
+    }
+  });
+
   it('06/2015 tem vínculo CLT e prestador ao mesmo tempo', () => {
     const { extrato } = montarExtrato(itens);
     const naCompetencia = extrato.vinculos.filter(

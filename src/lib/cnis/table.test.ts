@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { agruparEmLinhas } from './rows';
-import { celulasPorGrupo, colunasDoCabecalho, mapearColunas, parseValorCentavos } from './table';
+import { celulasPorGrupo, celulasPorGrupoIndexado, colunasDoCabecalho, mapearColunas, parseValorCentavos } from './table';
 import type { TextItem } from './types';
 
 const linhaDe = (pares: Array<[number, string]>, y = 100, page = 1): ReturnType<typeof agruparEmLinhas>[number] => {
@@ -112,6 +112,23 @@ describe('celulasPorGrupo com colunas fora de ordem', () => {
     const embaralhadas = [colunas[2], colunas[0], colunas[1]];
     const grupos = celulasPorGrupo(linhaDe([[55, '06/2018'], [144, '658,58']]), embaralhadas);
     expect(grupos).toEqual([{ 'Competência': '06/2018', 'Remuneração': '658,58' }]);
+  });
+});
+
+describe('celulasPorGrupoIndexado', () => {
+  it('diz a qual grupo de colunas cada registro de células pertence', () => {
+    const colunas = mapearColunas(CABECALHO_CLT, ['Competência', 'Remuneração', 'Indicadores'])!;
+    // Só o grupo do meio tem célula: o índice no array não serve como número do grupo.
+    const indexados = celulasPorGrupoIndexado(linhaDe([[500, 'IREM-INDPEND']]), colunas);
+    expect(indexados).toEqual([{ grupo: 1, celulas: { Indicadores: 'IREM-INDPEND' } }]);
+  });
+
+  it('devolve os grupos em ordem, com as mesmas células de celulasPorGrupo', () => {
+    const colunas = mapearColunas(CABECALHO_CLT, ['Competência', 'Remuneração', 'Indicadores'])!;
+    const linha = linhaDe([[55, '06/2018'], [144, '658,58'], [580, '07/2018'], [668, '700,00']]);
+    const indexados = celulasPorGrupoIndexado(linha, colunas);
+    expect(indexados.map((g) => g.grupo)).toEqual([0, 2]);
+    expect(indexados.map((g) => g.celulas)).toEqual(celulasPorGrupo(linha, colunas));
   });
 });
 

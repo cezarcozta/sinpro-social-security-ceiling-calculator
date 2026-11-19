@@ -32,6 +32,18 @@ export function colunasDoCabecalho(cabecalho: Row): Coluna[] {
  * omitindo grupos sem nenhuma célula.
  */
 export function celulasPorGrupo(linha: Row, colunasEntrada: Coluna[]): Array<Record<string, string>> {
+  return celulasPorGrupoIndexado(linha, colunasEntrada).map(({ celulas }) => celulas);
+}
+
+/**
+ * Como `celulasPorGrupo`, mas dizendo a qual grupo cada registro pertence. O índice no
+ * array não serve: grupos sem célula são omitidos, então a terceira coluna de uma linha
+ * em que só o último grupo tem dado volta como primeiro elemento.
+ */
+export function celulasPorGrupoIndexado(
+  linha: Row,
+  colunasEntrada: Coluna[],
+): Array<{ grupo: number; celulas: Record<string, string> }> {
   if (colunasEntrada.length === 0) return [];
   // As fronteiras só fazem sentido com as colunas em ordem de x, venham como vierem.
   const colunas = [...colunasEntrada].sort((a, b) => a.x - b.x);
@@ -47,7 +59,7 @@ export function celulasPorGrupo(linha: Row, colunasEntrada: Coluna[]): Array<Rec
     porGrupo.set(coluna.grupo, celulas);
   }
 
-  return [...porGrupo.entries()].sort(([a], [b]) => a - b).map(([, celulas]) => celulas);
+  return [...porGrupo.entries()].sort(([a], [b]) => a - b).map(([grupo, celulas]) => ({ grupo, celulas }));
 }
 
 const VALOR = /^\d{1,3}(\.\d{3})*,\d{2}$/;

@@ -1,7 +1,13 @@
 import { agruparEmLinhas } from './rows';
 import { classificar, extrairCamposFiliado } from './sections';
 import { detectarLayout } from './layouts';
-import { celulasPorGrupo, colunasDoCabecalho, parseValorCentavos, type Coluna } from './table';
+import {
+  celulasPorGrupo,
+  celulasPorGrupoIndexado,
+  colunasDoCabecalho,
+  parseValorCentavos,
+  type Coluna,
+} from './table';
 import { extrairTextLayer } from './text-layer';
 import {
   CnisParseError,
@@ -20,6 +26,8 @@ import {
 const COMPETENCIA = /^(0[1-9]|1[0-3])\/\d{4}$/;
 const PARECE_COMPETENCIA = /\d{2}\/\d{4}/;
 const PARECE_VALOR = /\d,\d{2}/;
+/** Célula que tem só códigos de indicador, como "PSC-MEN-SM-EC103," ou "IREC-LC123, IREC-MEI". */
+const SO_INDICADORES = /^[A-Z][A-Z0-9-]*(,\s*[A-Z][A-Z0-9-]*)*,?$/;
 const MARCA_CNIS = 'CNIS - Cadastro Nacional de Informações Sociais';
 
 /** Rótulo da coluna do vínculo -> campo do objeto Vinculo. */
@@ -68,6 +76,12 @@ type EmConstrucao = {
   pagina: number;
   remuneracoes: Remuneracao[];
   contribuicoes: Contribuicao[];
+  /**
+   * Último registro lido de cada grupo de colunas. Serve para costurar célula de
+   * indicadores que o PDF quebrou em duas linhas visuais: a continuação chega numa linha
+   * sem competência e tem que voltar para a competência do SEU grupo, não da última lida.
+   */
+  ultimoPorGrupo: Array<Remuneracao | Contribuicao | undefined>;
 };
 
 /** Fallback quando o vínculo não tem tabela: o tipo de filiado é o que resta. */
@@ -75,7 +89,8 @@ const naturezaPeloTipo = (tipoFiliado: string): NaturezaVinculo =>
   TIPOS_CLT.has(tipoFiliado) ? 'CLT' : 'CI_PROPRIO';
 
 function finalizar(v: EmConstrucao): Vinculo {
-  const { natureza, remuneracoes, contribuicoes, ...resto } = v;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { natureza, remuneracoes, contribuicoes, ultimoPorGrupo: _ultimo, ...resto } = v;
   // `pagina` só serve ao aviso NATUREZA_INDEFINIDA; não faz parte do Vinculo público.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { pagina: _pagina, ...base } = resto;
@@ -235,10 +250,10 @@ export function montarExtrato(itens: TextItem[]): ParseResult {
 
     if (estado.nome === 'tabela' && vinculo) {
       if (vinculo.natureza === 'CI_PROPRIO') {
-        // Task 4 implementa este caminho.
-        continue;
+        lerLinhaContribuicao(linha, estado.colunas, vinculo, avisar);
+      } else {
+        lerLinhaRemuneracao(linha, estado.colunas, vinculo, avisar);
       }
-      lerLinhaRemuneracao(linha, estado.colunas, vinculo, avisar);
     }
   }
 
@@ -265,6 +280,7 @@ function construirVinculo(celulas: Record<string, string>, pagina: number): EmCo
     pagina,
     remuneracoes: [],
     contribuicoes: [],
+    ultimoPorGrupo: [],
   };
   for (const [rotulo, valor] of Object.entries(celulas)) {
     switch (CAMPOS_VINCULO[rotulo]) {
@@ -319,20 +335,31 @@ function acrescentarIndicadores(vinculo: EmConstrucao, texto: string): void {
 }
 
 /**
- * Grupos da linha que têm competência válida. Os demais são conferidos: fragmento de
- * cabeçalho repetido pode ser descartado, mas célula com cara de dado fora da coluna
- * esperada não pode evaporar.
+ * Grupos da linha que têm competência válida, com o número do grupo. Os demais são
+ * conferidos: continuação de célula de indicadores volta para a competência do mesmo
+ * grupo, fragmento de cabeçalho repetido pode ser descartado, mas célula com cara de
+ * dado fora da coluna esperada não pode evaporar.
  */
 function gruposComDado(
   linha: Row,
   colunas: Coluna[],
+  vinculo: EmConstrucao,
   avisar: (codigo: ParseWarning['codigo'], pagina: number, detalhe: string) => void,
-): Array<Record<string, string>> {
-  const grupos = celulasPorGrupo(linha, colunas);
-  const comCompetencia = grupos.filter((g) => COMPETENCIA.test(g['Competência'] ?? ''));
-  for (const grupo of grupos) {
-    if (comCompetencia.includes(grupo)) continue;
-    const texto = Object.values(grupo).join(' ');
+): Array<{ grupo: number; celulas: Record<string, string> }> {
+  const grupos = celulasPorGrupoIndexado(linha, colunas);
+  const comCompetencia = grupos.filter((g) => COMPETENCIA.test(g.celulas['Competência'] ?? ''));
+  for (const { grupo, celulas } of grupos) {
+    if (comCompetencia.some((g) => g.celulas === celulas)) continue;
+    const texto = Object.values(celulas).join(' ');
+    const indicadores = (celulas['Indicadores'] ?? '').trim();
+    const soNaColunaDeIndicadores = Object.entries(celulas).every(
+      ([nome, valor]) => nome === 'Indicadores' || valor.trim() === '',
+    );
+    const ultimo = vinculo.ultimoPorGrupo[grupo];
+    if (indicadores !== '' && soNaColunaDeIndicadores && SO_INDICADORES.test(indicadores) && ultimo) {
+      ultimo.indicadores.push(...separarIndicadores(indicadores));
+      continue;
+    }
     if (PARECE_COMPETENCIA.test(texto) || PARECE_VALOR.test(texto)) {
       avisar('CELULA_ORFA', linha.page, `Linha da tabela com dado fora da coluna esperada: "${texto}"`);
     }
@@ -347,7 +374,7 @@ function lerLinhaRemuneracao(
   vinculo: EmConstrucao,
   avisar: (codigo: ParseWarning['codigo'], pagina: number, detalhe: string) => void,
 ): void {
-  for (const grupo of gruposComDado(linha, colunas, avisar)) {
+  for (const { grupo: numeroDoGrupo, celulas: grupo } of gruposComDado(linha, colunas, vinculo, avisar)) {
     const competencia = grupo['Competência'];
     const valorCentavos = parseValorCentavos(grupo['Remuneração'] ?? '');
 
@@ -359,11 +386,53 @@ function lerLinhaRemuneracao(
       avisar('COMPETENCIA_DUPLICADA', linha.page, `Competência ${competencia} aparece mais de uma vez no vínculo`);
     }
 
-    vinculo.remuneracoes.push({
+    const remuneracao: Remuneracao = {
       competencia,
       valorCentavos,
       indicadores: separarIndicadores(grupo['Indicadores'] ?? ''),
-    });
+    };
+    vinculo.remuneracoes.push(remuneracao);
+    vinculo.ultimoPorGrupo[numeroDoGrupo] = remuneracao;
+  }
+}
+
+/** CI_PROPRIO: duas cifras por linha. `Contribuição` é o valor PAGO, não uma estimativa. */
+function lerLinhaContribuicao(
+  linha: Row,
+  colunas: Coluna[],
+  vinculo: EmConstrucao,
+  avisar: (codigo: ParseWarning['codigo'], pagina: number, detalhe: string) => void,
+): void {
+  for (const { grupo: numeroDoGrupo, celulas: grupo } of gruposComDado(linha, colunas, vinculo, avisar)) {
+    const competencia = grupo['Competência'];
+    const contribuicaoCentavos = parseValorCentavos(grupo['Contribuição'] ?? '');
+    const salarioContribuicaoCentavos = parseValorCentavos(grupo['Salário Contribuição'] ?? '');
+
+    // As duas cifras são obrigatórias: sem a base não há como conferir a alíquota, e sem o
+    // valor pago não há o que restituir. Faltando uma, o dado não entra meio lido.
+    if (contribuicaoCentavos === null || salarioContribuicaoCentavos === null) {
+      avisar(
+        'CELULA_ORFA',
+        linha.page,
+        `Competência ${competencia} sem as duas cifras legíveis (contribuição: "${grupo['Contribuição'] ?? ''}", salário de contribuição: "${grupo['Salário Contribuição'] ?? ''}")`,
+      );
+      continue;
+    }
+    if (vinculo.contribuicoes.some((c) => c.competencia === competencia)) {
+      avisar('COMPETENCIA_DUPLICADA', linha.page, `Competência ${competencia} aparece mais de uma vez no vínculo`);
+    }
+
+    const contribuicao: Contribuicao = {
+      competencia,
+      contribuicaoCentavos,
+      salarioContribuicaoCentavos,
+      indicadores: separarIndicadores(grupo['Indicadores'] ?? ''),
+    };
+    const dataPgto = (grupo['Data Pgto.'] ?? '').trim();
+    if (dataPgto !== '') contribuicao.dataPgto = dataPgto;
+
+    vinculo.contribuicoes.push(contribuicao);
+    vinculo.ultimoPorGrupo[numeroDoGrupo] = contribuicao;
   }
 }
 
