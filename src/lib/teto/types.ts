@@ -20,3 +20,9 @@ export type TabelaVigencia = {
   readonly tetoCentavos: number;
   readonly faixas: readonly Faixa[];
 };
+
+/**
+ * Aviso do motor. Nunca silêncio: linha que não entendemos, dado descartado ou base
+ * ausente sai aqui, e a F3 exibe (regra "falhar aberto", §9 da spec).
+ */
+export type AvisoTeto = { codigo: string; competencia: string; detalhe: string };
