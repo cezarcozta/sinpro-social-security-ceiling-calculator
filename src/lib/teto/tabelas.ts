@@ -7,24 +7,27 @@ import type { TabelaVigencia } from './types';
  * portaria de origem: é o dado de maior impacto do motor, e quem conferir no DOU precisa
  * saber o que conferir.
  *
- * ATENÇÃO: as cinco entradas do meio (2022 a 2025) vêm de fonte secundária. 2021 e 2026
- * foram conferidas direto no gov.br e a fonte secundária bate exatamente nas duas pontas.
- * Conferir as do meio nas portarias antes de o app ir ao ar — ver §10 da spec da F2.
+ * TODAS as sete entradas foram conferidas em fonte primária em 19/11/2026, valor por valor
+ * (quatro limites de faixa + teto por vigência), contra o texto das portarias e as páginas
+ * oficiais do INSS. Zero divergências. Ao acrescentar uma vigência nova, conferir do mesmo
+ * modo e anotar aqui: é o dado de maior impacto do motor, e um teto errado em um ano
+ * silenciosamente erra o dinheiro de doze competências.
  */
 export const VIGENCIAS: readonly TabelaVigencia[] = [
-  // Portaria SEPRT 477/2021
+  // Portaria SEPRT/ME 477, de 12/01/2021 — conferida na tabela histórica do INSS (gov.br)
   { vigencia: '2021-01', tetoCentavos: 643357, faixas: [[110000, 750], [220348, 900], [330522, 1200], [643357, 1400]] },
-  // Portaria MTP/ME 12/2022
+  // Portaria Interministerial MTP/ME 12, de 17/01/2022 — conferida no Anexo II da portaria
   { vigencia: '2022-01', tetoCentavos: 708722, faixas: [[121200, 750], [242735, 900], [364103, 1200], [708722, 1400]] },
-  // Portaria MPS/MF 26/2023
+  // Portaria Interministerial MPS/MF 26, de 10/01/2023, Anexo II — conferida (vale 01 a 04/2023)
   { vigencia: '2023-01', tetoCentavos: 750749, faixas: [[130200, 750], [257129, 900], [385694, 1200], [750749, 1400]] },
-  // Portaria MPS/MF 27/2023 — o salário mínimo mudou em maio; o teto não, só a 1ª faixa
+  // Portaria Interministerial MPS/MF 27, de 04/05/2023, que inseriu o Anexo II-A na 26/2023 —
+  // conferida. O salário mínimo mudou em maio; o teto não, só o limite da 1ª faixa.
   { vigencia: '2023-05', tetoCentavos: 750749, faixas: [[132000, 750], [257129, 900], [385694, 1200], [750749, 1400]] },
-  // Portaria MPS/MF 2/2024
+  // Portaria Interministerial MPS/MF 2, de 11/01/2024 — conferida no anexo da portaria
   { vigencia: '2024-01', tetoCentavos: 778602, faixas: [[141200, 750], [266668, 900], [400003, 1200], [778602, 1400]] },
-  // Portaria MPS/MF 6/2025
+  // Portaria Interministerial MPS/MF 6, de 10/01/2025 — conferida no anexo da portaria
   { vigencia: '2025-01', tetoCentavos: 815741, faixas: [[151800, 750], [279388, 900], [419083, 1200], [815741, 1400]] },
-  // Portaria MPS/MF 13/2026
+  // Portaria Interministerial MPS/MF 13, de 09/01/2026 — conferida na tabela vigente do INSS
   { vigencia: '2026-01', tetoCentavos: 847555, faixas: [[162100, 750], [290284, 900], [435427, 1200], [847555, 1400]] },
 ];
 

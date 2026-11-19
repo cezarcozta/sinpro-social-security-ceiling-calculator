@@ -297,8 +297,13 @@ Regra única, sem caso especial: trate `13/AAAA` como competência `12/AAAA` par
 prescrição (a gratificação é paga em dezembro e recolhida com a competência de dezembro).
 Em seguida, `prescreveEm = 20 / ((MM mod 12) + 1) / (AAAA + 5 + (MM == 12 ? 1 : 0))`.
 
-`noPrazo = dataReferencia < prescreveEm`. `diasRestantes ≤ 90` marca `urgente` — é o que
-transforma a triagem em ação.
+`noPrazo = dataReferencia <= prescreveEm` — **com o igual**: o prazo corre até o fim do
+seu último dia, então quem pede no dia 20 ainda está no prazo. (Corrigido em 19/11/2026:
+esta linha dizia `<` e contradizia o código, que sempre usou `<=` e tem teste fixando a
+virada em 19, 20 e 21/02. Uma spec que contradiz código testado convida alguém a
+"corrigir" o código de volta e perder um dia de prazo de cada competência.)
+
+`diasRestantes ≤ 90` marca `urgente` — é o que transforma a triagem em ação.
 
 ### 6.5 Achado do MEI
 
@@ -399,7 +404,6 @@ de alguém lembrar:
 | `avisos.length > 0` | Houve linha do extrato que não entendemos. O resultado pode estar incompleto. | aviso de topo, não escondido em detalhe |
 | `decimoTerceiro === true` | O 13º tem **teto próprio**, calculado em separado do salário de dezembro. | na linha do 13º |
 | sempre | O resultado é **estimativa de triagem**, não cálculo oficial nem parecer jurídico ou contábil. Confira com o sindicato antes de levar ao RH ou pedir restituição. | rodapé permanente e no PDF da F4 |
-| sempre | As tabelas de teto de 2022 a 2025 ainda não foram conferidas no DOU (ver §10). | enquanto a pendência de §10 estiver aberta |
 | sempre | Nenhum dado do extrato sai do navegador. | reforço da garantia da F1, que é o que faz o professor subir o arquivo |
 
 Dois princípios por trás da tabela:
@@ -414,9 +418,13 @@ Dois princípios por trás da tabela:
 
 ## 10. Riscos e pendências conhecidas
 
-- **Tabelas de 2022 a 2025 vêm de fonte secundária.** 2021 e 2026 foram conferidos direto
-  no gov.br, e a fonte secundária bate exatamente nas duas pontas. Conferir os cinco do
-  meio nas portarias do DOU antes de o app ir ao ar. É o dado de maior impacto do motor.
+- ~~**Tabelas de 2022 a 2025 vêm de fonte secundária.**~~ **Fechado em 19/11/2026:** as
+  sete vigências foram conferidas em fonte primária, valor por valor (quatro limites de
+  faixa + teto por vigência), contra o texto das portarias (MTP/ME 12/2022; MPS/MF 26/2023,
+  Anexo II; MPS/MF 27/2023, Anexo II-A; MPS/MF 2/2024; MPS/MF 6/2025) e as páginas oficiais
+  do INSS (histórico, para 2021; tabela vigente, para 2026). **Zero divergências.** Um teste
+  de fixação em `tabelas.test.ts` pina os 35 números para que uma edição futura não os troque
+  em silêncio.
 - **O dinheiro é estimativa para CLT e CI_PRESTADOR.** O CNIS informa a remuneração, não o
   que cada fonte efetivamente descontou. O resultado tem que vir rotulado como estimativa
   na F3.
