@@ -27,6 +27,35 @@ const proprio = (seq: number, ...contribuicoes: Contribuicao[]): Vinculo => ({
 
 const extratoCom2024 = extratoCom(clt(1, rem('08/2024', 500000)), clt(2, rem('08/2024', 450000)));
 
+// --- camada de texto sintética, para exercitar o caminho PDF -> CnisExtrato -> motor ---
+const MARCA = 'CNIS - Cadastro Nacional de Informações Sociais';
+type Celula = [x: number, str: string];
+
+const camadaDeTexto = (linhas: Array<[y: number, celulas: Celula[]]>): TextItem[] => {
+  const itens: TextItem[] = [{ page: 1, x: 280, y: 59, str: MARCA }];
+  for (const [y, celulas] of linhas) for (const [x, str] of celulas) itens.push({ page: 1, x, y, str });
+  return itens;
+};
+
+const cabecalhoVinculo = (y: number): [number, Celula[]] => [
+  y,
+  [[35, 'Seq.'], [87, 'NIT'], [152, 'Código Emp.'], [301, 'Origem do Vínculo'], [475, 'Trabalhador'],
+   [582, 'Tipo Filiado no Vínculo'], [650, 'Data Início'], [705, 'Data Fim'], [755, 'Últ. Remun.']],
+];
+const linhaVinculo = (y: number, seq: string, tipo: string): [number, Celula[]] => [
+  y,
+  [[42, seq], [67, '123.45678.90-1'], [139, '12.345.678/0001-95'], [287, 'COLEGIO ALFA'],
+   [554, tipo], [651, '01/2024'], [702, '12/2024'], [765, '12/2024']],
+];
+const cabecalhoClt = (y: number): [number, Celula[]] => [
+  y,
+  [[43, 'Competência'], [131, 'Remuneração'], [221, 'Indicadores']],
+];
+const cabecalhoProprio = (y: number): [number, Celula[]] => [
+  y,
+  [[43, 'Competência'], [120, 'Data Pgto.'], [200, 'Contribuição'], [300, 'Salário Contribuição'], [420, 'Indicadores']],
+];
+
 describe('calcularTeto', () => {
   it('monta a competência completa do exemplo da spec', () => {
     const r = calcularTeto(extratoCom2024, HOJE);
@@ -95,6 +124,63 @@ describe('calcularTeto', () => {
     expect(achado.valorCentavos).toBe(8105);
     expect(r.resumo.totalAPedirCentavos).not.toBe(achado.valorCentavos);
     expect(r.resumo.totalAPedirCentavos).toBe(0);
+  });
+
+  it('um vínculo com duas guias no mesmo mês não é "múltiplos vínculos"', () => {
+    const r = calcularTeto(
+      extratoCom(
+        proprio(
+          1,
+          { competencia: '08/2024', contribuicaoCentavos: 20900, salarioContribuicaoCentavos: 104500, indicadores: [] },
+          { competencia: '08/2024', contribuicaoCentavos: 20900, salarioContribuicaoCentavos: 104500, indicadores: [] },
+        ),
+      ),
+      HOJE,
+    );
+    // duas guias somam de verdade, mas a fonte pagadora é UMA: a F4 declara ao RH que há
+    // outra fonte, e esse número não pode vir de duas linhas do mesmo vínculo
+    expect(r.competencias[0].multiplosVinculos).toBe(false);
+    expect(r.resumo.mesesComMultiplosVinculos).toBe(0);
+  });
+
+  it('rejeita dataReferencia impossível em vez de rolar a data em silêncio', () => {
+    const vazio: CnisExtrato = { filiado: {}, vinculos: [] };
+    expect(() => calcularTeto(vazio, '2026-99-99')).toThrow(/dataReferencia/);
+    expect(() => calcularTeto(vazio, '2026-02-30')).toThrow(/dataReferencia/);
+    expect(() => calcularTeto(vazio, 'ontem')).toThrow(/dataReferencia/);
+  });
+
+  it('calcula dinheiro a partir de um extrato que o PARSER montou, não de literais', () => {
+    const itens = camadaDeTexto([
+      cabecalhoVinculo(200),
+      linhaVinculo(214, '1', 'Empregado ou Agente Público'),
+      [240, [[54, 'Remunerações']]],
+      cabecalhoClt(255),
+      [270, [[43, '08/2024'], [131, '5.000,00']]],
+      cabecalhoVinculo(300),
+      linhaVinculo(314, '2', 'Empregado ou Agente Público'),
+      [340, [[54, 'Remunerações']]],
+      cabecalhoClt(355),
+      [370, [[43, '08/2024'], [131, '4.500,00']]],
+      cabecalhoVinculo(400),
+      linhaVinculo(414, '3', 'Contribuinte Individual'),
+      [440, [[54, 'Contribuições']]],
+      cabecalhoProprio(455),
+      [470, [[43, '08/2024'], [120, '15/09/2024'], [200, '70,60'], [300, '1.412,00'], [430, 'IREC-MEI']]],
+    ]);
+
+    const { extrato } = montarExtrato(itens);
+    expect(extrato.vinculos.map((v) => v.natureza)).toEqual(['CLT', 'CLT', 'CI_PROPRIO']);
+
+    const r = calcularTeto(extrato, HOJE);
+    expect(r.competencias).toHaveLength(1);
+    const c = r.competencias[0];
+    expect(c.competencia).toBe('08/2024');
+    expect(c.multiplosVinculos).toBe(true);
+    expect(c.camadas.map((x) => x.natureza)).toEqual(['CLT', 'CI_PROPRIO']);
+    expect(c.retidoAMaiorCentavos).toBe(5878); // os dois CLT; o DAS do MEI não entra aqui
+    expect(r.achados).toEqual([{ tipo: 'MEI_DAS_INDEVIDO', competencias: ['08/2024'], valorCentavos: 7060 }]);
+    expect(r.resumo.totalAPedirCentavos).toBe(5878);
   });
 
   it('propaga os avisos das camadas inferiores, nunca os engole', () => {

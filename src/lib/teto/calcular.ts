@@ -1,7 +1,7 @@
 import type { CnisExtrato } from '../cnis/types';
 import { rodarCascata } from './cascata';
 import { agruparPorCompetencia } from './competencias';
-import { prescricaoDe } from './prescricao';
+import { prescricaoDe, validarDataReferencia } from './prescricao';
 import { tabelaDe } from './tabelas';
 import type { AvisoTeto, ResultadoCompetencia, ResultadoTeto } from './types';
 
@@ -17,6 +17,10 @@ import type { AvisoTeto, ResultadoCompetencia, ResultadoTeto } from './types';
  * Agrupar por ano é apresentação — a F3 deriva, o motor não emite `porAno`.
  */
 export function calcularTeto(extrato: CnisExtrato, dataReferencia: string): ResultadoTeto {
+  // Na borda, antes de qualquer cálculo: um extrato vazio não pode devolver resultado limpo
+  // ecoando uma dataReferencia que não existe.
+  validarDataReferencia(dataReferencia);
+
   const { competencias: grupos, avisos: avisosDoAgrupamento } = agruparPorCompetencia(extrato);
 
   const competencias: ResultadoCompetencia[] = [];
@@ -53,7 +57,12 @@ export function calcularTeto(extrato: CnisExtrato, dataReferencia: string): Resu
       continue;
     }
 
-    const fontes = bases.clt.length + bases.prestador.length + bases.proprio.length;
+    // Conta VÍNCULOS distintos, não linhas: duas guias de recolhimento próprio no mesmo mês
+    // somam de verdade, mas a fonte pagadora é uma só. A F4 declara ao RH que existe outra
+    // fonte pagadora — esse número não pode vir de duas linhas do mesmo vínculo.
+    const vinculosDistintos = new Set(
+      [...bases.clt, ...bases.prestador, ...bases.proprio].map((f) => f.seq),
+    ).size;
 
     competencias.push({
       competencia: bases.competencia,
@@ -66,7 +75,7 @@ export function calcularTeto(extrato: CnisExtrato, dataReferencia: string): Resu
       devidoCentavos: cascata.devidoCentavos,
       retidoAMaiorCentavos: cascata.retidoAMaiorCentavos,
       camadas: cascata.camadas,
-      multiplosVinculos: fontes > 1,
+      multiplosVinculos: vinculosDistintos > 1,
       prescricao,
     });
   }

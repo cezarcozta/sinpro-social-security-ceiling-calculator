@@ -149,6 +149,51 @@ describe('rodarCascata', () => {
     expect(r.retidoAMaiorCentavos).toBe(32420);
   });
 
+  it('o achado do MEI soma só as linhas de MEI: o recolhimento comum segue no total geral', () => {
+    const r = rodarCascata(
+      bases({
+        clt: [fonteRem(900000, 1)],
+        proprio: [
+          { seq: 2, contribuicaoCentavos: 7060, salarioContribuicaoCentavos: 141200, indicadores: ['IREC-MEI'] },
+          { seq: 3, contribuicaoCentavos: 20900, salarioContribuicaoCentavos: 104500, indicadores: [] },
+        ],
+      }),
+      T2024,
+    );
+    expect(r.meiDasIndevidoCentavos).toBe(7060);
+    // os 209,00 do recolhimento comum pedem-se por outro rito e NÃO podem sair do total
+    expect(r.retidoAMaiorCentavos).toBe(20900);
+  });
+
+  it('linha de recolhimento próprio com base zero ao lado de uma linha boa emite BASE_AUSENTE e sai do total', () => {
+    const r = rodarCascata(
+      bases({
+        clt: [fonteRem(900000, 1)],
+        proprio: [
+          { seq: 2, contribuicaoCentavos: 5225, salarioContribuicaoCentavos: 0, indicadores: [] },
+          { seq: 2, contribuicaoCentavos: 20900, salarioContribuicaoCentavos: 104500, indicadores: [] },
+        ],
+      }),
+      T2024,
+    );
+    expect(r.avisos.map((a) => a.codigo)).toContain('BASE_AUSENTE');
+    expect(r.retidoAMaiorCentavos).toBe(20900); // os 52,25 sem base não viram crédito
+  });
+
+  it('duas linhas de alíquotas diferentes são conferidas uma a uma, sem taxa misturada', () => {
+    const r = rodarCascata(
+      bases({
+        proprio: [
+          { seq: 1, contribuicaoCentavos: 7060, salarioContribuicaoCentavos: 141200, indicadores: ['IREC-MEI'] },
+          { seq: 2, contribuicaoCentavos: 11495, salarioContribuicaoCentavos: 104500, indicadores: ['IREC-LC123'] },
+        ],
+      }),
+      T2024,
+    );
+    // 5% e 11%, cada um batendo com o seu indicador: misturar daria 7,6% e um aviso falso
+    expect(r.avisos).toEqual([]);
+  });
+
   it('margemFinalCentavos é o que sobra do teto depois das duas primeiras camadas', () => {
     expect(rodarCascata(bases({}), T2024).margemFinalCentavos).toBe(778602);
     expect(rodarCascata(basesClt(500000), T2024).margemFinalCentavos).toBe(278602);

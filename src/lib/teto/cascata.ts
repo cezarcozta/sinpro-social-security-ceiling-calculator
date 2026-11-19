@@ -55,10 +55,12 @@ export function rodarCascata(bases: BasesDaCompetencia, tabela: TabelaVigencia):
   let meiDasIndevido = 0;
 
   /** Soma a camada ao total, com `max(0, …)` por camada: uma camada não compensa a outra. */
-  const registrar = (camada: Camada, contaNoTotal = true): void => {
+  const registrar = (camada: Camada): void => {
     camadas.push(camada);
-    if (contaNoTotal) retidoAMaior += Math.max(0, camada.retidoCentavos - camada.devidoCentavos);
+    retidoAMaior += Math.max(0, camada.retidoCentavos - camada.devidoCentavos);
   };
+
+  const ehMei = (fonte: FonteContribuinte): boolean => fonte.indicadores.includes('IREC-MEI');
 
   // 1. CLT — a tabela progressiva inteira, por fonte, porque cada empregador aplica a sua.
   const somaClt = somaDe(bases.clt);
@@ -87,58 +89,78 @@ export function rodarCascata(bases: BasesDaCompetencia, tabela: TabelaVigencia):
   const margemFinal = Math.max(0, margem1 - Math.min(somaPrestador, margem1));
 
   // 3. CI recolhimento próprio — o valor pago está escrito no extrato. Leitura, não estimativa.
+  //
+  // Linha a linha, e NÃO na soma das linhas: cada guia tem a sua alíquota e o seu salário
+  // de contribuição. Somar as duas cifras antes de dividir produz uma taxa efetiva que
+  // ninguém pagou (5% com 11% dá 7,6%), um aviso de divergência falso, e — no caso do MEI —
+  // um achado inflado pelo valor das outras linhas. O argumento da §2.3 ("a taxa efetiva
+  // sai da própria divisão") só vale por fonte.
   if (bases.proprio.length > 0) {
-    const somaProprio = bases.proprio.reduce((t: number, f: FonteContribuinte) => t + f.salarioContribuicaoCentavos, 0);
-    const pago = bases.proprio.reduce((t: number, f: FonteContribuinte) => t + f.contribuicaoCentavos, 0);
-    const indicadores = bases.proprio.flatMap((f) => f.indicadores);
+    // O MEI vai ao fim da fila de propósito: ele quase não move a travessia do teto (§2.4),
+    // então é ele quem fica sem margem quando o resto já bateu o teto — que é exatamente a
+    // condição do achado da §6.5. Dar a margem ao MEI primeiro tiraria do total geral um
+    // recolhimento comum que se pede por outro rito.
+    const emOrdem = [...bases.proprio.filter((f) => !ehMei(f)), ...bases.proprio.filter(ehMei)];
+    let margem = margemFinal;
+    let baseDaCamada = 0;
+    let retidoDaCamada = 0;
+    let devidoDaCamada = 0;
+    let somaNoTotal = 0;
 
-    if (somaProprio <= 0) {
-      // Sem salário de contribuição não há como dizer quanto era devido. Falhar aberto: a
-      // camada aparece, o aviso explica, e ela NÃO entra no total — afirmar que os centavos
-      // pagos são todos indevidos seria inventar crédito a partir de um dado que falta.
-      avisos.push({
-        codigo: 'BASE_AUSENTE',
-        competencia: bases.competencia,
-        detalhe: `recolhimento próprio com contribuição de ${pago} centavos e salário de contribuição ausente ou zero: a camada não entra no total`,
-      });
-      registrar(
-        { natureza: 'CI_PROPRIO', baseCentavos: somaProprio, retidoCentavos: pago, devidoCentavos: 0, lido: true },
-        false,
-      );
-    } else {
-      /**
-       * O MEI recolhe 5% do salário mínimo via DAS, e essa contribuição só integra o
-       * salário de contribuição se complementada em +15% — ou seja, quase não move a
-       * travessia do teto. Mas se o teto já está batido pelos vínculos de empregado, a
-       * parcela de INSS do DAS é integralmente indevida, e o caminho de restituição é
-       * OUTRO: Anexo I da IN RFB 2.055/2021, em processo no e-CAC, não PER/DCOMP Web.
-       *
-       * Por isso o valor sai do total geral e vira achado próprio: somar os dois num número
-       * só mandaria o professor pedir pelo caminho errado — ou pedir duas vezes.
-       */
-      const ehAchadoMei = margemFinal === 0 && indicadores.includes('IREC-MEI');
-      if (ehAchadoMei) meiDasIndevido = pago;
+    for (const fonte of emOrdem) {
+      baseDaCamada += fonte.salarioContribuicaoCentavos;
+      retidoDaCamada += fonte.contribuicaoCentavos;
 
-      const bpsEfetivo = bpsDe(pago, somaProprio);
-      const esperado = bpsPrometido(indicadores);
-      if (!confere(pago, somaProprio, esperado)) {
+      if (fonte.salarioContribuicaoCentavos <= 0) {
+        // Sem salário de contribuição não há como dizer quanto era devido NESTA linha.
+        // Falhar aberto: a linha aparece no retido da camada, o aviso explica, e ela não
+        // entra no total — afirmar que os centavos pagos são todos indevidos seria inventar
+        // crédito a partir de um dado que falta.
+        avisos.push({
+          codigo: 'BASE_AUSENTE',
+          competencia: bases.competencia,
+          detalhe: `vínculo ${fonte.seq}: contribuição de ${fonte.contribuicaoCentavos} centavos com salário de contribuição ausente ou zero; a linha não entra no total`,
+        });
+        continue;
+      }
+
+      const bpsEfetivo = bpsDe(fonte.contribuicaoCentavos, fonte.salarioContribuicaoCentavos);
+      const esperado = bpsPrometido(fonte.indicadores);
+      if (!confere(fonte.contribuicaoCentavos, fonte.salarioContribuicaoCentavos, esperado)) {
         avisos.push({
           codigo: 'ALIQUOTA_DIVERGENTE',
           competencia: bases.competencia,
-          detalhe: `recolhimento próprio: o par de cifras dá ${bpsEfetivo} pontos-base, os indicadores [${indicadores.join(', ') || 'nenhum'}] prometem ${esperado}. A linha pode não ter sido entendida`,
+          detalhe: `vínculo ${fonte.seq}: o par de cifras dá ${bpsEfetivo} pontos-base, os indicadores [${fonte.indicadores.join(', ') || 'nenhum'}] prometem ${esperado}. A linha pode não ter sido entendida`,
         });
       }
-      registrar(
-        {
-          natureza: 'CI_PROPRIO',
-          baseCentavos: somaProprio,
-          retidoCentavos: pago,
-          devidoCentavos: aplicar(Math.min(somaProprio, margemFinal), bpsEfetivo),
-          lido: true,
-        },
-        !ehAchadoMei,
-      );
+
+      const cabe = Math.min(fonte.salarioContribuicaoCentavos, margem);
+      const devidoDaFonte = aplicar(cabe, bpsEfetivo);
+      margem -= cabe;
+      devidoDaCamada += devidoDaFonte;
+
+      if (ehMei(fonte) && cabe === 0) {
+        // O MEI recolhe 5% do salário mínimo via DAS, e essa contribuição só integra o
+        // salário de contribuição se complementada em +15% — ou seja, quase não move a
+        // travessia do teto. Mas se o teto já está batido, a parcela de INSS do DAS é
+        // integralmente indevida, e o caminho de restituição é OUTRO: Anexo I da IN RFB
+        // 2.055/2021, em processo no e-CAC, não PER/DCOMP Web. Por isso sai do total geral
+        // e vira achado: somar os dois num número só mandaria o professor pedir pelo rito
+        // errado — ou pedir duas vezes.
+        meiDasIndevido += fonte.contribuicaoCentavos;
+      } else {
+        somaNoTotal += Math.max(0, fonte.contribuicaoCentavos - devidoDaFonte);
+      }
     }
+
+    camadas.push({
+      natureza: 'CI_PROPRIO',
+      baseCentavos: baseDaCamada,
+      retidoCentavos: retidoDaCamada,
+      devidoCentavos: devidoDaCamada,
+      lido: true,
+    });
+    retidoAMaior += somaNoTotal;
   }
 
   return {

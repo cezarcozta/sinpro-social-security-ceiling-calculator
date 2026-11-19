@@ -12,6 +12,28 @@ function emDias(ano: number, mes: number, dia: number): number {
 const doisDigitos = (n: number): string => String(n).padStart(2, '0');
 
 /**
+ * `AAAA-MM-DD` que existe de verdade. Conferir só a forma não basta: `"2026-99-99"` passaria
+ * pelo regex e `Date.UTC` o rolaria em silêncio para 2034, marcando a elegibilidade de todos
+ * os meses errada — um erro de dinheiro vindo de um erro de digitação.
+ */
+export function validarDataReferencia(dataReferencia: string): { ano: number; mes: number; dia: number } {
+  const casou = DATA.exec(dataReferencia);
+  const erro = new Error(`dataReferencia deve ser uma data real em AAAA-MM-DD, recebi "${dataReferencia}"`);
+  if (!casou) throw erro;
+
+  const [ano, mes, dia] = [Number(casou[1]), Number(casou[2]), Number(casou[3])];
+  const comoData = new Date(Date.UTC(ano, mes - 1, dia));
+  if (
+    comoData.getUTCFullYear() !== ano ||
+    comoData.getUTCMonth() !== mes - 1 ||
+    comoData.getUTCDate() !== dia
+  ) {
+    throw erro;
+  }
+  return { ano, mes, dia };
+}
+
+/**
  * Prazo de restituição da competência, contra uma `dataReferencia` injetada (`AAAA-MM-DD`).
  *
  * A prescrição corre **por pagamento**, não por ano civil: CTN art. 168, I, com a LC
@@ -29,8 +51,7 @@ export function prescricaoDe(competencia: string, dataReferencia: string): Presc
   const casou = COMPETENCIA.exec(competencia);
   if (!casou) return null;
 
-  const hoje = DATA.exec(dataReferencia);
-  if (!hoje) throw new Error(`dataReferencia deve ser AAAA-MM-DD, recebi "${dataReferencia}"`);
+  const hoje = validarDataReferencia(dataReferencia);
 
   const mm = Number(casou[1]) === 13 ? 12 : Number(casou[1]);
   const ano = Number(casou[2]);
@@ -41,7 +62,7 @@ export function prescricaoDe(competencia: string, dataReferencia: string): Presc
 
   const diasRestantes =
     emDias(anoDaPrescricao, mesDoVencimento, 20) -
-    emDias(Number(hoje[1]), Number(hoje[2]), Number(hoje[3]));
+    emDias(hoje.ano, hoje.mes, hoje.dia);
   const noPrazo = diasRestantes >= 0;
 
   return { prescreveEm, noPrazo, diasRestantes, urgente: noPrazo && diasRestantes <= 90 };
