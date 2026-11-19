@@ -139,11 +139,15 @@ Registradas no fim da execução do plano da F2 (2026-11-19). O motor vive em
 
 ### Bloqueia o app ir ao ar
 
-- **Tabelas de 2022 a 2025 vêm de fonte secundária.** 2021 e 2026 foram conferidas direto
-  no gov.br e a fonte secundária bate exatamente nas duas pontas. Conferir as cinco do meio
-  nas portarias do DOU (MTP/ME 12/2022, MPS/MF 26/2023, MPS/MF 27/2023, MPS/MF 2/2024,
-  MPS/MF 6/2025) antes de o app ir ao ar. É o dado de maior impacto do motor, e o comentário
-  em `teto/tabelas.ts` diz isso para quem abrir o arquivo.
+- ~~**Tabelas de 2022 a 2025 vêm de fonte secundária.**~~ **Fechado em 19/11/2026.** As sete
+  vigências foram conferidas em fonte primária, valor por valor — quatro limites de faixa e
+  o teto de cada uma, 35 números — contra o texto das portarias (MTP/ME 12/2022; MPS/MF
+  26/2023, Anexo II; MPS/MF 27/2023, Anexo II-A; MPS/MF 2/2024; MPS/MF 6/2025) e as páginas
+  oficiais do INSS (tabela histórica, para 2021; tabela vigente, para 2026). **Zero
+  divergências** — a fonte secundária estava correta nos cinco anos do meio. Um teste de
+  fixação em `tabelas.test.ts` pina os valores com a portaria de origem em comentário, para
+  que uma edição futura não os troque em silêncio. Ao acrescentar 2027, conferir do mesmo
+  modo e anotar.
 - **Os disclaimers da §9 da spec da F2 são requisito da F3**, não sugestão. Cada linha
   daquela tabela é acionada por um campo da saída (`camadas[].lido`,
   `prescricao.noPrazo`, `prescricao.urgente`, `ignoradasSemTabela`, `avisos`,
