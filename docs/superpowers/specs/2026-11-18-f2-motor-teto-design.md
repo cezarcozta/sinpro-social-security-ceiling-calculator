@@ -297,8 +297,13 @@ Regra única, sem caso especial: trate `13/AAAA` como competência `12/AAAA` par
 prescrição (a gratificação é paga em dezembro e recolhida com a competência de dezembro).
 Em seguida, `prescreveEm = 20 / ((MM mod 12) + 1) / (AAAA + 5 + (MM == 12 ? 1 : 0))`.
 
-`noPrazo = dataReferencia < prescreveEm`. `diasRestantes ≤ 90` marca `urgente` — é o que
-transforma a triagem em ação.
+`noPrazo = dataReferencia <= prescreveEm` — **com o igual**: o prazo corre até o fim do
+seu último dia, então quem pede no dia 20 ainda está no prazo. (Corrigido em 19/11/2026:
+esta linha dizia `<` e contradizia o código, que sempre usou `<=` e tem teste fixando a
+virada em 19, 20 e 21/02. Uma spec que contradiz código testado convida alguém a
+"corrigir" o código de volta e perder um dia de prazo de cada competência.)
+
+`diasRestantes ≤ 90` marca `urgente` — é o que transforma a triagem em ação.
 
 ### 6.5 Achado do MEI
 
