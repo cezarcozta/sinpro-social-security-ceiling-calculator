@@ -109,6 +109,39 @@ describe('montarExtrato sobre o extrato de exemplo', () => {
     expect(todas).not.toContain('2014');
     expect(todas.every((c) => /^(0[1-9]|1[0-3])\/\d{4}$/.test(c))).toBe(true);
   });
+
+  it('lê as 17 competências do vínculo 5 (prestador de serviço)', () => {
+    const { extrato } = montarExtrato(itens);
+    const v5 = extrato.vinculos.find((v) => v.seq === 5)!;
+    expect(v5.natureza).toBe('CI_PRESTADOR');
+    if (v5.natureza === 'CI_PROPRIO') throw new Error('natureza inesperada');
+    expect(v5.remuneracoes).toHaveLength(17);
+    expect(v5.remuneracoes[0]).toEqual({
+      competencia: '06/2015',
+      valorCentavos: 10000,
+      indicadores: [],
+    });
+    expect(v5.remuneracoes.at(-1)).toEqual({
+      competencia: '10/2016',
+      valorCentavos: 372343,
+      indicadores: [],
+    });
+    expect(v5.remuneracoes.find((r) => r.competencia === '07/2015')!.valorCentavos).toBe(486534);
+    // 08/2015 a 05/2016 — dez meses; as outras ocorrências de 3.920,00 na fixture são
+    // da seção Valores Consolidados por Ano Civil, que não entra no vínculo.
+    expect(v5.remuneracoes.filter((r) => r.valorCentavos === 392000)).toHaveLength(10);
+  });
+
+  it('06/2015 tem vínculo CLT e prestador ao mesmo tempo', () => {
+    const { extrato } = montarExtrato(itens);
+    const naCompetencia = extrato.vinculos.filter(
+      (v) => v.natureza !== 'CI_PROPRIO' && v.remuneracoes.some((r) => r.competencia === '06/2015'),
+    );
+    expect(naCompetencia.map((v) => [v.seq, v.natureza])).toEqual([
+      [4, 'CLT'],
+      [5, 'CI_PRESTADOR'],
+    ]);
+  });
 });
 
 describe('montarExtrato — casos de erro e aviso', () => {

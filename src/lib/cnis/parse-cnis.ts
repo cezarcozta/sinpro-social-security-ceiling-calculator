@@ -233,9 +233,12 @@ export function montarExtrato(itens: TextItem[]): ParseResult {
       continue;
     }
 
-    // Só o layout CLT é lido por enquanto; as tabelas dos outros dois entram nas Tasks 3 e 4.
-    if (estado.nome === 'tabela' && vinculo && vinculo.natureza === 'CLT') {
-      lerLinhaDaTabela(linha, estado.colunas, vinculo, avisar);
+    if (estado.nome === 'tabela' && vinculo) {
+      if (vinculo.natureza === 'CI_PROPRIO') {
+        // Task 4 implementa este caminho.
+        continue;
+      }
+      lerLinhaRemuneracao(linha, estado.colunas, vinculo, avisar);
     }
   }
 
@@ -315,18 +318,18 @@ function acrescentarIndicadores(vinculo: EmConstrucao, texto: string): void {
   if (novos.length > 0) vinculo.indicadores = [...(vinculo.indicadores ?? []), ...novos];
 }
 
-function lerLinhaDaTabela(
+/**
+ * Grupos da linha que têm competência válida. Os demais são conferidos: fragmento de
+ * cabeçalho repetido pode ser descartado, mas célula com cara de dado fora da coluna
+ * esperada não pode evaporar.
+ */
+function gruposComDado(
   linha: Row,
   colunas: Coluna[],
-  vinculo: EmConstrucao,
   avisar: (codigo: ParseWarning['codigo'], pagina: number, detalhe: string) => void,
-): void {
+): Array<Record<string, string>> {
   const grupos = celulasPorGrupo(linha, colunas);
   const comCompetencia = grupos.filter((g) => COMPETENCIA.test(g['Competência'] ?? ''));
-
-  // Grupo sem competência válida: se for fragmento de cabeçalho repetido (nada com cara de dado)
-  // pode ser descartado. Se tem algo que PARECE competência ou valor, a célula caiu na coluna
-  // errada e o dado não pode evaporar, nem quando os outros grupos da mesma linha estão ok.
   for (const grupo of grupos) {
     if (comCompetencia.includes(grupo)) continue;
     const texto = Object.values(grupo).join(' ');
@@ -334,8 +337,17 @@ function lerLinhaDaTabela(
       avisar('CELULA_ORFA', linha.page, `Linha da tabela com dado fora da coluna esperada: "${texto}"`);
     }
   }
+  return comCompetencia;
+}
 
-  for (const grupo of comCompetencia) {
+/** CLT e CI_PRESTADOR: uma cifra só, na coluna "Remuneração". */
+function lerLinhaRemuneracao(
+  linha: Row,
+  colunas: Coluna[],
+  vinculo: EmConstrucao,
+  avisar: (codigo: ParseWarning['codigo'], pagina: number, detalhe: string) => void,
+): void {
+  for (const grupo of gruposComDado(linha, colunas, avisar)) {
     const competencia = grupo['Competência'];
     const valorCentavos = parseValorCentavos(grupo['Remuneração'] ?? '');
 
@@ -347,7 +359,11 @@ function lerLinhaDaTabela(
       avisar('COMPETENCIA_DUPLICADA', linha.page, `Competência ${competencia} aparece mais de uma vez no vínculo`);
     }
 
-    vinculo.remuneracoes.push({ competencia, valorCentavos, indicadores: separarIndicadores(grupo['Indicadores'] ?? '') });
+    vinculo.remuneracoes.push({
+      competencia,
+      valorCentavos,
+      indicadores: separarIndicadores(grupo['Indicadores'] ?? ''),
+    });
   }
 }
 
