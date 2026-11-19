@@ -200,14 +200,29 @@ export function Veredito({
             pedido malfeito é negado e consome o prazo.
           </p>
 
-          <button
-            type="button"
-            onClick={onConferir}
-            className="mt-3 self-start rounded-md bg-neutral-900 px-4 py-2 text-base font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
-          >
-            Ver mês a mês e conferir
-          </button>
         </section>
+      )}
+
+      {/*
+        Fora do bloco do acumulado de propósito: achado da verificação ponta a ponta com o
+        extrato real. O botão vivia dentro daquele bloco, que só aparece quando há dinheiro a
+        pedir — então um professor sem excesso nenhum lia "vale conferir mês a mês" e não
+        tinha como. A conferência é o par natural de qualquer veredito, inclusive do limpo:
+        a leitura do extrato é automática e pode falhar.
+
+        A condição inclui `ignoradasSemTabela`: o extrato de exemplo é todo anterior a 2021,
+        então ele não tem competência avaliada nenhuma — e a lista de meses não avaliados,
+        que a §9 manda deixar visível, mora na conferência. Sem isto ela ficaria silenciada
+        justamente para quem só tem meses fora do período.
+      */}
+      {(teto.competencias.length > 0 || teto.ignoradasSemTabela.length > 0) && (
+        <button
+          type="button"
+          onClick={onConferir}
+          className="self-start rounded-md bg-neutral-900 px-4 py-2 text-base font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+        >
+          {teto.competencias.length > 0 ? 'Ver mês a mês e conferir' : 'Ver os meses não avaliados'}
+        </button>
       )}
 
       {mei && (

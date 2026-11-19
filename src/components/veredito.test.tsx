@@ -106,3 +106,27 @@ describe('Veredito — avisos e rodapé', () => {
     expect(screen.getByText(/não sai do seu navegador/i)).toBeTruthy();
   });
 });
+
+describe('Veredito — caminho para a conferência', () => {
+  it('oferece a conferência mesmo quando não há nada a pedir', () => {
+    const semExcesso: ResultadoTeto = {
+      ...RESULTADO_GATILHOS,
+      competencias: RESULTADO_GATILHOS.competencias.map((c) => ({
+        ...c,
+        excedeuTeto: false,
+        baseExcedenteCentavos: 0,
+        retidoAMaiorCentavos: 0,
+      })),
+      achados: [],
+      resumo: { ...RESULTADO_GATILHOS.resumo, mesesAcimaDoTeto: 0, totalAPedirCentavos: 0, totalPrescritoCentavos: 0 },
+    };
+    montar(semExcesso, PARSE_LIMPO);
+    expect(screen.getByText(/não encontramos mês acima do teto/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /mês a mês/i })).toBeTruthy();
+  });
+
+  it('extrato sem competência nenhuma não oferece conferência vazia', () => {
+    montar(RESULTADO_VAZIO, PARSE_LIMPO);
+    expect(screen.queryByRole('button', { name: /mês a mês/i })).toBeNull();
+  });
+});
