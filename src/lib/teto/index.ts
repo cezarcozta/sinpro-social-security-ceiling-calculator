@@ -4,6 +4,7 @@ export type {
   AchadoTeto,
   AvisoTeto,
   Camada,
+  CodigoAvisoTeto,
   Faixa,
   Prescricao,
   ResultadoCompetencia,

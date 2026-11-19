@@ -1,6 +1,13 @@
 @import "tailwindcss";
 
 :root {
+  /*
+   * Tema claro fixo. O app desenha fundo branco e cartões brancos; sem `color-scheme`, um
+   * celular em modo escuro renderiza os controles nativos (radio da conferência, caixa de
+   * texto da divergência) escuros sobre cartão branco. Tema escuro de verdade é pendência
+   * declarada, não meia-implementação.
+   */
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #171717;
 }
@@ -10,14 +17,44 @@
   --color-foreground: var(--foreground);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+/*
+ * Impressão da conferência: o professor leva a folha ao sindicato ou usa como roteiro do
+ * pedido no e-CAC. Os rótulos de natureza e de prescrição **continuam visíveis** — uma folha
+ * sem eles é exatamente o "número solto" que a §9 da spec da F2 proíbe.
+ *
+ * Abrir todos os anos é um controle na tela, não uma regra aqui: forçar `<details>` aberto
+ * por CSS não é confiável entre navegadores.
+ */
+@media print {
+  :root {
+    color-scheme: light;
+  }
+
+  .no-print,
+  label:has(input[type='file']) {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  details {
+    border: 1px solid #999;
+    break-inside: avoid;
+  }
+
+  fieldset {
+    break-inside: avoid;
+  }
+
+  a[href]::after {
+    content: ' (' attr(href) ')';
+  }
 }

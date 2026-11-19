@@ -191,3 +191,58 @@ recolhimento próprio não bate com o que os indicadores prometem — não enten
 - **Cenários de parser ainda sem fixture sintética**: dois vínculos CLT no mesmo mês, 13º
   (`13/AAAA`), vínculo em aberto e três vínculos simultâneos. O motor da F2 cobre os quatro
   com literais `CnisExtrato`, mas o caminho PDF → `CnisExtrato` não.
+
+## Pendências depois da F3
+
+Registradas no fim da execução do plano da F3 (2026-11-19). As telas vivem em
+`src/components/` e a derivação em `src/lib/apresentacao/`, pura e sem React.
+
+### Bloqueia o app ir ao ar
+
+- **O contato do sindicato é `null`.** `src/lib/apresentacao/sindicato.ts` tem o único valor
+  de espera do ciclo. A tela encaminha o professor ao Sinpro-ABC em três lugares (restituição
+  no e-CAC, divergência de leitura, veredito sem nada avaliado) e, enquanto o contato for
+  `null`, ela diz "procure o Sinpro-ABC" sem dar endereço. Trocar por e-mail ou pela página
+  antes de publicar.
+
+### Decisões da F3 que a F4 herda
+
+- **O portão de conferência ainda não existe.** A §4.1 do design põe o portão no documento,
+  não no número: a carta ao RH só deve sair de mês conferido. Como o botão da F4 está
+  desabilitado, definir agora o que conta como "conferido" seria decidir pela F4 antes de
+  saber de que meses ela fala. A F4 precisa fechar isso.
+- **A declaração é prospectiva, e a tela diz isso em texto.** Se a F4 mudar o texto, não pode
+  perder a frase "essa declaração não devolve o que já foi descontado": é o risco número um
+  do produto.
+- **O Anexo VIII pede dado que o CNIS não tem** — CNPJ e razão social do destinatário,
+  remuneração atual por empregador e a **ordem** dos descontos (IN RFB 2.110/2022, art. 36
+  §1º). `fontesPorCompetencia` já entrega uma linha por empregador com o código do CNIS; falta
+  razão social, ordem e a confirmação da remuneração atual.
+- **O texto de divergência não leva CNPJ**, por decisão de privacidade tomada na execução: um
+  CNPJ de escola do Grande ABC reidentifica o professor. Se a F4 precisar do CNPJ num texto
+  que sai do dispositivo, é decisão nova.
+
+### Abertas, não bloqueantes
+
+- **Tema escuro** fora de escopo por decisão (§5.5 do design). `color-scheme: light` fixa o
+  comportamento em vez de deixá-lo meio-implementado. Fazer tema escuro de verdade é um
+  ciclo próprio, e os cartões brancos e as faixas de aviso precisariam de par escuro.
+- **Gráfico por ano** derivável de `agruparPorAno` sem mudar arquitetura. A `AGENTS.md` §F3
+  pede "gráfico **ou** tabela expansível", e a tabela cumpre.
+- **Firefox, Safari e leitor de tela reais** continuam não verificados — e agora pesam mais,
+  porque a F3 introduziu formulário (radio por competência, `<textarea>`, `<details>`).
+  Verificado em teste: papel acessível, nome acessível por `<legend>`, navegação por teclado
+  nativa. Não verificado: como um leitor de tela real anuncia 286 elementos de formulário num
+  extrato longo.
+- **Impressão não foi vista num navegador.** A folha `@media print` está escrita e os
+  controles marcados `.no-print`, mas ninguém imprimiu. É o item de menor prioridade do
+  ciclo, declarado assim no design.
+- **`AvisoTeto.codigo` virou união** (`CodigoAvisoTeto`), o que torna o dicionário de frases
+  exaustivo em tempo de compilação. O `ParseWarning.codigo` da F1 já era união. Falta o mesmo
+  para os **indicadores do INSS**, que hoje saem como o INSS os escreve, sem tradução — foi
+  decisão de escopo, não esquecimento.
+- **A verificação ponta a ponta usa o extrato de exemplo, que é todo anterior a 2021** (as
+  datas foram deslocadas na anonimização). Ela prova o caminho "nada avaliado" com dado real;
+  os caminhos com dinheiro são provados pela fixture de gatilhos, não por dado real. Um
+  extrato real com competência dentro de 2021–2026 cobriria os dois — e não haverá mais
+  extratos reais, por decisão de privacidade.
