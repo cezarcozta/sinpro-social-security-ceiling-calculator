@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { CnisExtrato } from '@/lib/cnis';
 import type { ResultadoCompetencia, ResultadoTeto } from '@/lib/teto';
 import { agruparPorAno } from '@/lib/apresentacao/anos';
@@ -137,7 +137,7 @@ function LinhaMes({
           </p>
         )}
 
-        <div className="flex flex-wrap gap-x-5 gap-y-1 pt-1">
+        <div className="no-print flex flex-wrap gap-x-5 gap-y-1 pt-1">
           <label className="flex items-center gap-2 text-base">
             <input
               type="radio"
@@ -159,7 +159,7 @@ function LinhaMes({
         </div>
 
         {marca === 'naoBate' && (
-          <div className="flex flex-col gap-1 rounded-md bg-neutral-100 p-3">
+          <div className="no-print flex flex-col gap-1 rounded-md bg-neutral-100 p-3">
             <label htmlFor={`divergencia-${competencia}`} className="text-sm font-medium">
               Texto para enviar ao sindicato
             </label>
@@ -199,6 +199,11 @@ export function Conferencia({
   const fontes = fontesPorCompetencia(extrato);
   const anoMaisRecente = anos[0]?.ano;
 
+  // Abrir tudo serve a duas coisas: conferir vários anos seguidos sem clicar em cada um, e
+  // imprimir. Forçar `<details>` aberto só pela folha de impressão não é confiável entre
+  // navegadores, então o controle é explícito.
+  const [todosAbertos, setTodosAbertos] = useState(false);
+
   return (
     <div className="flex flex-col gap-4">
       <header className="flex flex-col gap-2">
@@ -210,11 +215,21 @@ export function Conferencia({
         </p>
       </header>
 
+      {anos.length > 1 && (
+        <button
+          type="button"
+          onClick={() => setTodosAbertos((aberto) => !aberto)}
+          className="no-print self-start rounded-md border border-neutral-500 px-3 py-1 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+        >
+          {todosAbertos ? 'Fechar os anos' : 'Abrir todos os anos (para conferir ou imprimir)'}
+        </button>
+      )}
+
       {anos.map((grupo) => (
         <details
           key={grupo.ano}
           aria-label={`Ano ${grupo.ano}`}
-          open={grupo.ano === anoMaisRecente}
+          open={todosAbertos || grupo.ano === anoMaisRecente}
           className="rounded-lg border border-neutral-400 px-3 py-2"
         >
           <summary className="cursor-pointer py-1 text-base font-semibold">
@@ -256,7 +271,7 @@ export function Conferencia({
       <button
         type="button"
         onClick={onVoltar}
-        className="self-start rounded-md border border-neutral-500 px-4 py-2 text-base font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+        className="no-print self-start rounded-md border border-neutral-500 px-4 py-2 text-base font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
       >
         Voltar ao resumo
       </button>

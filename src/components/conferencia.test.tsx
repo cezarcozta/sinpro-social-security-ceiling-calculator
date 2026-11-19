@@ -124,3 +124,17 @@ describe('Conferencia', () => {
     expect(onVoltar).toHaveBeenCalledOnce();
   });
 });
+
+describe('Conferencia — abrir tudo para conferir e imprimir', () => {
+  it('abre todos os anos de uma vez, e volta a fechar', () => {
+    montar();
+    const fechadosAntes = anosNaTela().filter((g) => !g.open).length;
+    expect(fechadosAntes).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: /abrir todos/i }));
+    expect(anosNaTela().every((g) => g.open)).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: /fechar/i }));
+    expect(anosNaTela().filter((g) => !g.open).length).toBe(fechadosAntes);
+  });
+});
