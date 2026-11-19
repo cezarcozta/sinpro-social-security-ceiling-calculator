@@ -53,3 +53,44 @@ export type Camada = {
   devidoCentavos: number;
   lido: boolean;
 };
+
+/** Achado de caminho próprio: não entra no total geral porque não se pede pelo mesmo rito. */
+export type AchadoTeto = {
+  tipo: 'MEI_DAS_INDEVIDO';
+  competencias: string[];
+  valorCentavos: number;
+};
+
+export type ResultadoCompetencia = {
+  /** `"08/2024"` ou `"13/2024"`. */
+  competencia: string;
+  decimoTerceiro: boolean;
+  tetoCentavos: number;
+  somaBaseCentavos: number;
+  excedeuTeto: boolean;
+  /** Aritmética exata: soma menos teto. Só o dinheiro é estimativa. */
+  baseExcedenteCentavos: number;
+  retidoCentavos: number;
+  devidoCentavos: number;
+  /** Estimativa para CLT e prestador; leitura para recolhimento próprio. Ver `camadas[].lido`. */
+  retidoAMaiorCentavos: number;
+  camadas: Camada[];
+  multiplosVinculos: boolean;
+  prescricao: Prescricao;
+};
+
+export type ResultadoTeto = {
+  dataReferencia: string;
+  competencias: ResultadoCompetencia[];
+  /** Fora do período coberto pelas tabelas. **Não é erro** — mas tem que ficar visível. */
+  ignoradasSemTabela: string[];
+  achados: AchadoTeto[];
+  avisos: AvisoTeto[];
+  resumo: {
+    mesesComMultiplosVinculos: number;
+    mesesAcimaDoTeto: number;
+    /** Só competências com `prescricao.noPrazo`. */
+    totalAPedirCentavos: number;
+    totalPrescritoCentavos: number;
+  };
+};

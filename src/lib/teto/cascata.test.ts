@@ -112,6 +112,43 @@ describe('rodarCascata', () => {
     expect(rodarCascata(bases({}), T2024).camadas).toEqual([]);
   });
 
+  it('o MEI com a margem esgotada sai do total e vira valor de achado', () => {
+    const r = rodarCascata(
+      bases({
+        clt: [fonteRem(900000, 1)],
+        proprio: [{ seq: 2, contribuicaoCentavos: 8105, salarioContribuicaoCentavos: 162100, indicadores: ['IREC-MEI'] }],
+      }),
+      tabelaDe('08/2026')!,
+    );
+    expect(r.margemFinalCentavos).toBe(0);
+    expect(r.meiDasIndevidoCentavos).toBe(8105);
+    // o caminho de restituição do DAS é outro, então o valor NÃO entra no total geral
+    expect(r.retidoAMaiorCentavos).toBe(0);
+    expect(r.camadas.find((c) => c.natureza === 'CI_PROPRIO')!.retidoCentavos).toBe(8105);
+  });
+
+  it('MEI com margem sobrando não é achado: o DAS ainda tem onde caber', () => {
+    const r = rodarCascata(
+      bases({
+        proprio: [{ seq: 1, contribuicaoCentavos: 8105, salarioContribuicaoCentavos: 162100, indicadores: ['IREC-MEI'] }],
+      }),
+      tabelaDe('08/2026')!,
+    );
+    expect(r.meiDasIndevidoCentavos).toBe(0);
+  });
+
+  it('recolhimento próprio não-MEI com a margem esgotada continua no total geral', () => {
+    const r = rodarCascata(
+      bases({
+        clt: [fonteRem(900000, 1)],
+        proprio: [{ seq: 2, contribuicaoCentavos: 32420, salarioContribuicaoCentavos: 162100, indicadores: [] }],
+      }),
+      tabelaDe('08/2026')!,
+    );
+    expect(r.meiDasIndevidoCentavos).toBe(0);
+    expect(r.retidoAMaiorCentavos).toBe(32420);
+  });
+
   it('margemFinalCentavos é o que sobra do teto depois das duas primeiras camadas', () => {
     expect(rodarCascata(bases({}), T2024).margemFinalCentavos).toBe(778602);
     expect(rodarCascata(basesClt(500000), T2024).margemFinalCentavos).toBe(278602);
