@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { CnisParseError, parseCnis, type ParseResult } from '@/lib/cnis';
+import { CnisParseError, parseCnis, type NaturezaVinculo, type ParseResult } from '@/lib/cnis';
 
 type Situacao =
   | { estado: 'inicial' }
@@ -110,6 +110,17 @@ export function UploadCnis() {
   );
 }
 
+/**
+ * A natureza vem do layout da tabela, não do tipo de filiado: `TIPOS_NAO_CLT` aceita
+ * Trabalhador Avulso, Segurado Especial e Segurado Facultativo, então chamar todo vínculo
+ * não-CLT de "contribuinte individual" era falso. Rotular pela natureza diz o que foi lido.
+ */
+const NATUREZA_LEGIVEL: Record<NaturezaVinculo, string> = {
+  CLT: 'remuneração de empregado',
+  CI_PRESTADOR: 'prestação de serviço a tomador',
+  CI_PROPRIO: 'recolhimento próprio',
+};
+
 function Resultado({
   resultado,
   onBaixar,
@@ -146,13 +157,13 @@ function Resultado({
 
       {extrato.vinculos.some((v) => v.natureza !== 'CLT') && (
         <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          {extrato.vinculos.filter((v) => v.natureza !== 'CLT').length} vínculo(s) de
-          contribuinte individual lido(s) (
+          {extrato.vinculos.filter((v) => v.natureza !== 'CLT').length} vínculo(s) lido(s) fora
+          da tabela de remuneração de empregado (
           {extrato.vinculos
             .filter((v) => v.natureza !== 'CLT')
-            .map((v) => `${v.seq}: ${v.tipoFiliado}`)
+            .map((v) => `${v.seq}: ${NATUREZA_LEGIVEL[v.natureza]} — ${v.tipoFiliado}`)
             .join('; ')}
-          ). O cálculo de teto considera todos eles.
+          ). As competências deles também contam para o teto.
         </p>
       )}
 

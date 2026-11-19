@@ -58,6 +58,10 @@ primeiras são decisões que a **F2 tem que tomar**, não defeitos do parser.
 
 ### Decisões que a F2 precisa tomar
 
+- ~~**Competência duplicada chega duplicada.**~~ **decidido na F2**: a regra é por natureza,
+  em `teto/competencias.ts` — `CLT` e `CI_PRESTADOR` no mesmo vínculo ficam com a primeira
+  e emitem `DUPLICADA_DESCARTADA`; `CI_PROPRIO` soma. Registro original abaixo.
+
 - **Competência duplicada chega duplicada.** O parser registra
   `COMPETENCIA_DUPLICADA` e entrega os dois registros, por decisão documentada em
   `types.ts`: descartar perderia dinheiro quando a repetição é legítima (duas guias no
@@ -71,6 +75,10 @@ primeiras são decisões que a **F2 tem que tomar**, não defeitos do parser.
   continuou sem repetir o cabeçalho; as colunas da página anterior foram reaproveitadas)
   e `BLOCO_PULADO` (quantas competências ficaram de fora de um bloco ilegível). Todos se
   encaixam na regra "falhar aberto" da §9 da spec da F2.
+- ~~**O texto da UI mente hoje.**~~ **corrigido na F2**: o aviso agora rotula cada vínculo
+  pela natureza lida (`NATUREZA_LEGIVEL`) e afirma só que as competências contam para o
+  teto, sem prometer um cálculo que aquela tela não exibe. Registro original abaixo.
+
 - **O texto da UI mente hoje.** `upload-cnis.tsx` chama todo vínculo não-CLT de
   "contribuinte individual" — mas `TIPOS_NAO_CLT` aceita Trabalhador Avulso, Segurado
   Especial e Segurado Facultativo, que `naturezaPeloTipo` rotula `CI_PROPRIO` — e afirma
@@ -123,3 +131,59 @@ vínculos simultâneos.
   substituição de nome é a única defesa para nome e nome da mãe.
 - Navegadores não verificados: Firefox, Safari. Também não verificados: leitor de tela
   real e modo escuro do sistema.
+
+## Pendências depois da F2
+
+Registradas no fim da execução do plano da F2 (2026-11-19). O motor vive em
+`src/lib/teto/` e é biblioteca pura: sem UI, sem I/O, sem `new Date()`.
+
+### Bloqueia o app ir ao ar
+
+- **Tabelas de 2022 a 2025 vêm de fonte secundária.** 2021 e 2026 foram conferidas direto
+  no gov.br e a fonte secundária bate exatamente nas duas pontas. Conferir as cinco do meio
+  nas portarias do DOU (MTP/ME 12/2022, MPS/MF 26/2023, MPS/MF 27/2023, MPS/MF 2/2024,
+  MPS/MF 6/2025) antes de o app ir ao ar. É o dado de maior impacto do motor, e o comentário
+  em `teto/tabelas.ts` diz isso para quem abrir o arquivo.
+- **Os disclaimers da §9 da spec da F2 são requisito da F3**, não sugestão. Cada linha
+  daquela tabela é acionada por um campo da saída (`camadas[].lido`,
+  `prescricao.noPrazo`, `prescricao.urgente`, `ignoradasSemTabela`, `avisos`,
+  `decimoTerceiro`, `achados`), justamente para que a F3 implemente a regra em vez de
+  depender de alguém lembrar.
+
+### Avisos novos que a F3 precisa saber exibir
+
+Além dos da F1 e da F1.5, o motor emite: `DUPLICADA_DESCARTADA` (competência repetida na
+mesma tabela CLT ou de prestador — ficou a primeira), `COMPETENCIA_INVALIDA` (competência
+que não casa com `MM/AAAA`, fora do cálculo), `ALIQUOTA_DIVERGENTE` (a alíquota efetiva do
+recolhimento próprio não bate com o que os indicadores prometem — não entendemos a linha),
+`BASE_AUSENTE` (contribuição sem salário de contribuição; a camada não entra no total) e
+`PRESCRICAO_INDETERMINADA`. Todos se encaixam na regra "falhar aberto".
+
+### Decisões do motor que a F3 herda
+
+- **O valor do DAS do MEI não entra em `totalAPedirCentavos`** e sai em
+  `achados: MEI_DAS_INDEVIDO`, porque o caminho de restituição é o Anexo I da IN RFB
+  2.055/2021 no e-CAC, não o PER/DCOMP Web. Exibir os dois somados mandaria o professor
+  pedir pelo rito errado.
+- **A camada com `BASE_AUSENTE` fica fora do total.** Falhar aberto no aviso, fechado no
+  dinheiro: afirmar que todo o valor pago é indevido, quando falta justamente o dado que
+  diria quanto era devido, seria inventar crédito.
+- **A §6.1 da spec omite o `min(base_i, teto)` na camada do prestador.** O motor aplica o
+  `min` nas três camadas; sem isso um professor com um único vínculo de prestador acima do
+  teto apareceria com crédito inexistente. Corrigir a spec quando ela for revisada.
+
+### Fora do escopo da F2, ainda abertas
+
+- **`IREC-LC123-SUP`** (Plano Simplificado acima da base do mínimo, cujo excesso é
+  restituível) não aparece na fixture e não é tratado. Candidato a achado próprio.
+- **`PSC-MEN-SM` / `PSC-MEN-SM-EC103`** (salário de contribuição abaixo do mínimo) aparecem
+  na fixture, inclusive em vínculo CLT, e não são tratados. Afetam agrupamento e
+  complementação, não o teto.
+- **`Valores Consolidados por Ano Civil`** continua sem uso como checksum. O motor da F2 é
+  o consumidor natural dessa conferência: é um valor por mês emitido pelo próprio INSS,
+  dentro do mesmo documento.
+- **Procedimento de restituição divergente entre fontes** (PER/DCOMP Web vs. declaração
+  anual de IR). Importa para o texto da F4.
+- **Cenários de parser ainda sem fixture sintética**: dois vínculos CLT no mesmo mês, 13º
+  (`13/AAAA`), vínculo em aberto e três vínculos simultâneos. O motor da F2 cobre os quatro
+  com literais `CnisExtrato`, mas o caminho PDF → `CnisExtrato` não.
