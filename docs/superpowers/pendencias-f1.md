@@ -246,3 +246,31 @@ Registradas no fim da execução do plano da F3 (2026-11-19). As telas vivem em
   os caminhos com dinheiro são provados pela fixture de gatilhos, não por dado real. Um
   extrato real com competência dentro de 2021–2026 cobriria os dois — e não haverá mais
   extratos reais, por decisão de privacidade.
+
+### Menores adiados pela revisão final da F3
+
+Levantados pelo revisor fresco do branch e deliberadamente não corrigidos — nenhum muda
+número na tela.
+
+- **`"2021 a 2026"` escrito à mão** em dois textos (`veredito.tsx`, `conferencia.tsx`),
+  duplicando o que vive em `teto/tabelas.ts`. Quando a tabela de 2027 entrar, a tela mente.
+  Derivar de `VIGENCIAS` — o aviso `DATA_SUSPEITA` já faz isso e serve de modelo.
+- **Borda do `<textarea>` da divergência em `neutral-400`** (~2,5:1), abaixo do critério de
+  3:1 que a própria spec adotou para controle de formulário. Botões e dropzone passam.
+- **`role="alert"` no bloco de avisos** deveria ser `role="region"` com `aria-labelledby`:
+  com dez avisos, um leitor de tela dispara tudo de uma vez e o bloco deixa de ser landmark.
+- **A conferência não mostra a contribuição paga do recolhimento próprio**, só o salário de
+  contribuição (que é a base do teto, e é coluna do CNIS — o rótulo "lido do extrato" está
+  correto). A contribuição paga é o dado mais forte do produto e ficaria bem ao lado.
+- **Fonte de R$ 0,00 no caso `BASE_AUSENTE`** aparece sem explicação na linha; a explicação
+  está no bloco de avisos, na outra tela.
+- **`<details open>` controlado sem `onToggle`**: "Fechar os anos" fecha também o ano que o
+  professor abriu à mão, porque o estado React não sabe o que ele abriu.
+- **Asserções condicionais no teste ponta a ponta**: com a fixture atual, `anos` é vazio e o
+  `if` guarda a única asserção útil. Se a fixture mudar, o teste passa a não afirmar nada.
+- **Sem error boundary**: `formatarCentavos` lança `RangeError` em entrada não inteira
+  (decisão correta na biblioteca), mas em runtime isso derrubaria a árvore e o professor
+  perderia o extrato lido, em vez de ver uma mensagem. Um boundary em `TelasDoResultado`
+  cumpriria "falhar aberto" na borda.
+- **`achados` sem fallback para `tipo` desconhecido**, ao contrário do cuidado que a §6.5
+  tomou com avisos. Hoje o motor emite um tipo só, então falha fechado sem consequência.
