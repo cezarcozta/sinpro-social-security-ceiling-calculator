@@ -96,6 +96,28 @@ describe('avisosExibiveis', () => {
     );
   });
 
+  it('recolhe indicador de competência, não só de vínculo', () => {
+    const parse: ParseResult = {
+      extrato: {
+        filiado: {},
+        vinculos: [
+          {
+            seq: 1,
+            tipoFiliado: 'Empregado',
+            natureza: 'CLT',
+            remuneracoes: [
+              { competencia: '09/2026', valorCentavos: 700000, indicadores: ['PREM-EXT'] },
+            ],
+          },
+        ],
+      },
+      warnings: [],
+    };
+    const [aviso] = avisosExibiveis(parse, TETO_VAZIO);
+    expect(aviso.origem).toBe('inss');
+    expect(aviso.detalhe).toBe('09/2026: PREM-EXT');
+  });
+
   it('extrato sem aviso nenhum devolve lista vazia', () => {
     expect(avisosExibiveis(PARSE_VAZIO, TETO_VAZIO)).toEqual([]);
   });

@@ -145,17 +145,33 @@ export function avisosExibiveis(parse: ParseResult, teto: ResultadoTeto): AvisoE
 
   // Os indicadores são do próprio INSS, não códigos nossos: vão como o INSS os escreve,
   // num aviso só, sem dicionário de tradução neste ciclo.
-  const comIndicadores = parse.extrato.vinculos.filter((v) => (v.indicadores?.length ?? 0) > 0);
-  if (comIndicadores.length > 0) {
+  //
+  // Há indicador em dois níveis, e os dois importam: no vínculo (ex. `IREM-INDPEND`) e na
+  // competência (ex. `PREM-EXT`, `IRE-INSS` — os que a `AGENTS.md` §F1 nomeia). Olhar só o
+  // nível do vínculo esconderia justamente a marca do mês, que é onde o dinheiro está.
+  const marcas: string[] = [];
+  for (const v of parse.extrato.vinculos) {
+    if ((v.indicadores?.length ?? 0) > 0) {
+      marcas.push(`vínculo ${v.seq}: ${v.indicadores!.join(', ')}`);
+    }
+    const linhas =
+      v.natureza === 'CI_PROPRIO'
+        ? v.contribuicoes.map((c) => ({ competencia: c.competencia, indicadores: c.indicadores }))
+        : v.remuneracoes.map((r) => ({ competencia: r.competencia, indicadores: r.indicadores }));
+    for (const linha of linhas) {
+      if (linha.indicadores.length > 0) {
+        marcas.push(`${linha.competencia}: ${linha.indicadores.join(', ')}`);
+      }
+    }
+  }
+  if (marcas.length > 0) {
     lista.push({
       codigo: 'INDICADORES_INSS',
       frase:
-        'O INSS marcou pendência em vínculos do seu extrato. Isso pode afetar os valores registrados — vale conferir com o sindicato.',
+        'O INSS marcou pendência em partes do seu extrato. Isso pode afetar os valores registrados — vale conferir com o sindicato.',
       gravidade: 'media',
       origem: 'inss',
-      detalhe: comIndicadores
-        .map((v) => `vínculo ${v.seq}: ${v.indicadores!.join(', ')}`)
-        .join('; '),
+      detalhe: marcas.join('; '),
     });
   }
 
