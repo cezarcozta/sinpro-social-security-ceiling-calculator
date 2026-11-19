@@ -203,6 +203,38 @@ describe('montarExtrato sobre o extrato de exemplo', () => {
     }
   });
 
+  it('nenhum vínculo perde competências em silêncio', () => {
+    const { extrato, warnings } = montarExtrato(itens);
+    const quantidades = extrato.vinculos.map((v) => [
+      v.seq,
+      v.natureza === 'CI_PROPRIO' ? v.contribuicoes.length : v.remuneracoes.length,
+    ]);
+    expect(quantidades).toEqual([
+      [1, 16],
+      [2, 5],
+      [3, 14],
+      [4, 30],
+      [5, 17],
+    ]);
+    expect(warnings).toEqual([]);
+  });
+
+  it('a contagem de competências bate com o intervalo de datas do vínculo', () => {
+    const { extrato } = montarExtrato(itens);
+    const mesesEntre = (inicio: string, fim: string): number => {
+      const [, mi, ai] = inicio.split('/').map(Number);
+      const [, mf, af] = fim.split('/').map(Number);
+      return (af - ai) * 12 + (mf - mi) + 1;
+    };
+    for (const v of extrato.vinculos) {
+      if (!v.dataInicio || !v.dataFim) continue;
+      const lidas = v.natureza === 'CI_PROPRIO' ? v.contribuicoes.length : v.remuneracoes.length;
+      // Lacunas são legítimas (mês sem recolhimento), então o teto é o limite superior.
+      // Passar dele significa competência duplicada ou vazada de outro vínculo.
+      expect(lidas).toBeLessThanOrEqual(mesesEntre(v.dataInicio, v.dataFim));
+    }
+  });
+
   it('06/2015 tem vínculo CLT e prestador ao mesmo tempo', () => {
     const { extrato } = montarExtrato(itens);
     const naCompetencia = extrato.vinculos.filter(
