@@ -4,7 +4,15 @@ export type TextItem = { page: number; x: number; y: number; str: string };
 /** Itens que compartilham a mesma linha visual, ordenados por x. */
 export type Row = { page: number; y: number; items: TextItem[] };
 
-/** Linha das tabelas CLT e de prestador de serviço: só a remuneração. */
+/**
+ * Linha das tabelas CLT e de prestador de serviço: só a remuneração.
+ *
+ * ATENÇÃO para quem consome: a lista pode conter a MESMA competência mais de uma vez. O
+ * parser não descarta linha repetida — registra `COMPETENCIA_DUPLICADA` e entrega as duas,
+ * porque descartar seria perder dinheiro se a repetição for legítima (no recolhimento
+ * próprio, duas guias no mesmo mês somam de verdade). Quem calcula o teto decide por
+ * natureza: somar (CI_PROPRIO) ou tratar como artefato de leitura (CLT/CI_PRESTADOR).
+ */
 export type Remuneracao = {
   /** "MM/AAAA"; MM pode ser 13 (gratificação natalina). */
   competencia: string;
@@ -74,7 +82,25 @@ export type WarningCode =
   /** Vínculo sem tabela de competências: a natureza foi inferida do tipo de filiado. */
   | 'NATUREZA_INDEFINIDA'
   /** O layout da tabela e o tipo de filiado discordam. O layout vence; o aviso registra. */
-  | 'NATUREZA_DIVERGENTE';
+  | 'NATUREZA_DIVERGENTE'
+  /**
+   * O vínculo publicou duas tabelas de layouts diferentes. O modelo dá uma natureza só a
+   * cada vínculo, então a lista da primeira não entra no resultado — o aviso diz quais
+   * competências ficaram de fora, em vez de deixá-las evaporar.
+   */
+  | 'TABELA_DESCARTADA'
+  /**
+   * A tabela continuou sem repetir o cabeçalho de colunas. As colunas da tabela anterior
+   * do mesmo vínculo foram reaproveitadas para não perder as competências; o aviso
+   * registra que a leitura dessas linhas se apoiou na geometria da página anterior.
+   */
+  | 'CABECALHO_REAPROVEITADO'
+  /**
+   * Bloco que não pôde ser lido (vínculo ilegível, cabeçalho de tabela desconhecido) e as
+   * competências que ficaram de fora com ele. O aviso anterior diz a causa; este diz o
+   * tamanho do prejuízo, em vez de deixar o usuário supor que não havia nada ali.
+   */
+  | 'BLOCO_PULADO';
 
 export type ParseWarning = {
   codigo: WarningCode;

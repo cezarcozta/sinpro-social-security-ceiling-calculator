@@ -1,6 +1,6 @@
 import { agruparEmLinhas } from './rows';
 import { classificar, extrairCamposFiliado } from './sections';
-import { detectarLayout } from './layouts';
+import { detectarLayout, type LayoutDetectado } from './layouts';
 import {
   celulasPorGrupo,
   celulasPorGrupoIndexado,
@@ -82,6 +82,8 @@ type EmConstrucao = {
    * sem competência e tem que voltar para a competência do SEU grupo, não da última lida.
    */
   ultimoPorGrupo: Array<Remuneracao | Contribuicao | undefined>;
+  /** Colunas da última tabela aberta, para a continuação que não repete o cabeçalho. */
+  colunas?: Coluna[];
 };
 
 /** Fallback quando o vínculo não tem tabela: o tipo de filiado é o que resta. */
@@ -133,6 +135,21 @@ export function montarExtrato(itens: TextItem[]): ParseResult {
   const avisar = (codigo: ParseWarning['codigo'], pagina: number, detalhe: string) =>
     warnings.push({ codigo, pagina, seq: vinculo?.seq, detalhe });
 
+  // Competências vistas enquanto o parser pulava um bloco que não soube ler. Viram um
+  // aviso só, com o tamanho do prejuízo, em vez de um aviso por linha ou de silêncio.
+  let puladas: string[] = [];
+  let paginaPulada = 0;
+
+  const fecharPuladas = () => {
+    if (puladas.length === 0) return;
+    warnings.push({
+      codigo: 'BLOCO_PULADO',
+      pagina: paginaPulada,
+      detalhe: `${puladas.length} competência(s) ficaram de fora do bloco que não pôde ser lido: ${puladas.join(', ')}`,
+    });
+    puladas = [];
+  };
+
   const fecharPendente = () => {
     if (!pendente) return;
     const { vinculo: novo, pagina } = pendente;
@@ -156,7 +173,10 @@ export function montarExtrato(itens: TextItem[]): ParseResult {
     if (estado.nome === 'fim') break;
     const tipo = classificar(linha);
 
-    if (tipo === 'cabecalho-vinculo' || tipo === 'rotulo-secao' || tipo === 'fim') fecharPendente();
+    if (tipo === 'cabecalho-vinculo' || tipo === 'rotulo-secao' || tipo === 'fim') {
+      fecharPendente();
+      fecharPuladas();
+    }
 
     // 'ignorar' não muda estado: é o que permite a tabela continuar na página seguinte.
     if (tipo === 'ignorar') continue;
@@ -193,11 +213,14 @@ export function montarExtrato(itens: TextItem[]): ParseResult {
       const novo = construirVinculo(celulas, linha.page);
       // seq e tipo de filiado são obrigatórios: sem eles não há chave de identificação nem classificação.
       if (novo.tipoFiliado === '' || novo.seq === 0) {
-        avisar(
-          'LAYOUT_DESCONHECIDO',
-          linha.page,
-          `Linha de vínculo não reconhecida (seq lido: ${novo.seq || 'nenhum'}, tipo de filiado lido: "${novo.tipoFiliado}"; colunas do cabeçalho: ${estado.colunas.map((c) => c.nome).join(' | ')})`,
-        );
+        // `avisar` leria o seq do vínculo corrente, que acabou de ser anulado: o seq que
+        // interessa é o desta linha, e o texto dela diz se era dado de tabela mal lido.
+        warnings.push({
+          codigo: 'LAYOUT_DESCONHECIDO',
+          pagina: linha.page,
+          seq: novo.seq || undefined,
+          detalhe: `Linha de vínculo não reconhecida (seq lido: ${novo.seq || 'nenhum'}, tipo de filiado lido: "${novo.tipoFiliado}"; linha: "${linha.items.map((i) => i.str).join(' | ')}"; colunas do cabeçalho: ${estado.colunas.map((c) => c.nome).join(' | ')})`,
+        });
         // Não é um não-CLT: é um layout que não soubemos ler. Não classifica nem ignora.
         vinculo = null;
         estado = { nome: 'pulando' };
@@ -210,6 +233,16 @@ export function montarExtrato(itens: TextItem[]): ParseResult {
     }
 
     if (estado.nome === 'continuacao-vinculo') {
+      // O rótulo da seção pode ter vindo partido pelo PDF ("Remuneraç" + "ões"), e então
+      // não foi reconhecido. O cabeçalho de colunas abre a tabela do mesmo jeito: sem isto
+      // a tabela inteira era engolida como continuação do vínculo.
+      const detectado = detectarLayout(linha);
+      if (detectado) {
+        fecharPendente();
+        if (vinculo) abrirTabela(vinculo, detectado, linha.page, avisar);
+        estado = { nome: 'tabela', colunas: detectado.colunas };
+        continue;
+      }
       // "Empregado ou Agente" + "Público" vêm em linhas separadas.
       const [celulas = {}] = celulasPorGrupo(linha, estado.colunas);
       const alvo = pendente?.vinculo;
@@ -229,35 +262,43 @@ export function montarExtrato(itens: TextItem[]): ParseResult {
     if (estado.nome === 'aguardando-cabecalho-tabela') {
       const detectado = detectarLayout(linha);
       if (!detectado) {
-        avisar('LAYOUT_DESCONHECIDO', linha.page, `Cabeçalho de tabela não reconhecido: "${linha.items.map((i) => i.str).join(' | ')}"`);
+        const texto = linha.items.map((i) => i.str).join(' | ');
+        // Continuação de página que repete o rótulo da seção mas não o cabeçalho de
+        // colunas: esta linha já é dado. As colunas da tabela anterior do mesmo vínculo
+        // valem, porque a geometria da página não muda — melhor que perder as competências.
+        if (vinculo?.colunas && (PARECE_COMPETENCIA.test(texto) || PARECE_VALOR.test(texto))) {
+          avisar(
+            'CABECALHO_REAPROVEITADO',
+            linha.page,
+            `Tabela continuou sem repetir o cabeçalho de colunas; usando as colunas da tabela anterior do vínculo ${vinculo.seq}`,
+          );
+          estado = { nome: 'tabela', colunas: vinculo.colunas };
+          lerLinhaDaTabela(linha, estado.colunas, vinculo, avisar);
+          continue;
+        }
+        avisar('LAYOUT_DESCONHECIDO', linha.page, `Cabeçalho de tabela não reconhecido: "${texto}"`);
         estado = { nome: 'pulando' };
         continue;
       }
-      if (vinculo) {
-        vinculo.natureza = detectado.natureza;
-        const ehCLT = TIPOS_CLT.has(vinculo.tipoFiliado);
-        if (ehCLT !== (detectado.natureza === 'CLT')) {
-          avisar(
-            'NATUREZA_DIVERGENTE',
-            linha.page,
-            `Layout de tabela ${detectado.natureza} com tipo de filiado "${vinculo.tipoFiliado}". O layout prevalece.`,
-          );
-        }
-      }
+      if (vinculo) abrirTabela(vinculo, detectado, linha.page, avisar);
       estado = { nome: 'tabela', colunas: detectado.colunas };
       continue;
     }
 
     if (estado.nome === 'tabela' && vinculo) {
-      if (vinculo.natureza === 'CI_PROPRIO') {
-        lerLinhaContribuicao(linha, estado.colunas, vinculo, avisar);
-      } else {
-        lerLinhaRemuneracao(linha, estado.colunas, vinculo, avisar);
+      lerLinhaDaTabela(linha, estado.colunas, vinculo, avisar);
+    }
+
+    if (estado.nome === 'pulando') {
+      for (const item of linha.items) {
+        if (COMPETENCIA.test(item.str)) puladas.push(item.str);
       }
+      paginaPulada = linha.page;
     }
   }
 
   fecharPendente();
+  fecharPuladas();
   for (const v of construindo) {
     if (v.natureza === null) {
       warnings.push({
@@ -323,6 +364,9 @@ function construirVinculo(celulas: Record<string, string>, pagina: number): EmCo
 
 function separarIndicadores(texto: string): string[] {
   return texto
+    // O PDF pode cortar o código no hífen ("PSC-MEN-SM-" + "EC103"); dentro da mesma célula
+    // as metades chegam separadas por espaço, e código de indicador não tem espaço.
+    .replace(/-\s+/g, '-')
     .split(',')
     .map((i) => i.trim())
     .filter((i) => i !== '');
@@ -332,6 +376,52 @@ function separarIndicadores(texto: string): string[] {
 function acrescentarIndicadores(vinculo: EmConstrucao, texto: string): void {
   const novos = separarIndicadores(texto);
   if (novos.length > 0) vinculo.indicadores = [...(vinculo.indicadores ?? []), ...novos];
+}
+
+/**
+ * Um vínculo tem uma natureza só, então a lista da tabela anterior não entra no resultado
+ * quando a segunda tabela tem outro layout. O dado some do extrato, mas não do aviso.
+ */
+function avisarTabelaDescartada(
+  vinculo: EmConstrucao,
+  nova: NaturezaVinculo,
+  pagina: number,
+  avisar: (codigo: ParseWarning['codigo'], pagina: number, detalhe: string) => void,
+): void {
+  const anterior = vinculo.natureza;
+  if (anterior === null || anterior === nova) return;
+  const descartadas = anterior === 'CI_PROPRIO' ? vinculo.contribuicoes : vinculo.remuneracoes;
+  if (descartadas.length === 0) return;
+  avisar(
+    'TABELA_DESCARTADA',
+    pagina,
+    `Vínculo ${vinculo.seq} tem tabela ${anterior} e tabela ${nova}. As competências lidas na primeira não entram no resultado: ${descartadas.map((d) => d.competencia).join(', ')}`,
+  );
+}
+
+/**
+ * Põe o vínculo em leitura da tabela detectada: fixa a natureza, guarda as colunas para
+ * uma eventual continuação sem cabeçalho e reinicia a costura de indicadores, que não
+ * atravessa cabeçalho de tabela.
+ */
+function abrirTabela(
+  vinculo: EmConstrucao,
+  detectado: LayoutDetectado,
+  pagina: number,
+  avisar: (codigo: ParseWarning['codigo'], pagina: number, detalhe: string) => void,
+): void {
+  avisarTabelaDescartada(vinculo, detectado.natureza, pagina, avisar);
+  vinculo.natureza = detectado.natureza;
+  vinculo.colunas = detectado.colunas;
+  vinculo.ultimoPorGrupo = [];
+  const ehCLT = TIPOS_CLT.has(vinculo.tipoFiliado);
+  if (ehCLT !== (detectado.natureza === 'CLT')) {
+    avisar(
+      'NATUREZA_DIVERGENTE',
+      pagina,
+      `Layout de tabela ${detectado.natureza} com tipo de filiado "${vinculo.tipoFiliado}". O layout prevalece.`,
+    );
+  }
 }
 
 /**
@@ -357,7 +447,14 @@ function gruposComDado(
     );
     const ultimo = vinculo.ultimoPorGrupo[grupo];
     if (indicadores !== '' && soNaColunaDeIndicadores && SO_INDICADORES.test(indicadores) && ultimo) {
-      ultimo.indicadores.push(...separarIndicadores(indicadores));
+      const partes = separarIndicadores(indicadores);
+      const anterior = ultimo.indicadores.at(-1);
+      // Corte no hífen entre as duas linhas: "PSC-MEN-SM-" fechou a linha de cima e
+      // "EC103" abre esta. É um código só, não dois.
+      if (anterior?.endsWith('-') && partes.length > 0) {
+        ultimo.indicadores[ultimo.indicadores.length - 1] = `${anterior}${partes.shift()}`;
+      }
+      ultimo.indicadores.push(...partes);
       continue;
     }
     if (PARECE_COMPETENCIA.test(texto) || PARECE_VALOR.test(texto)) {
@@ -365,6 +462,20 @@ function gruposComDado(
     }
   }
   return comCompetencia;
+}
+
+/** Despacha a linha para o leitor do layout que a natureza do vínculo determina. */
+function lerLinhaDaTabela(
+  linha: Row,
+  colunas: Coluna[],
+  vinculo: EmConstrucao,
+  avisar: (codigo: ParseWarning['codigo'], pagina: number, detalhe: string) => void,
+): void {
+  if (vinculo.natureza === 'CI_PROPRIO') {
+    lerLinhaContribuicao(linha, colunas, vinculo, avisar);
+  } else {
+    lerLinhaRemuneracao(linha, colunas, vinculo, avisar);
+  }
 }
 
 /** CLT e CI_PRESTADOR: uma cifra só, na coluna "Remuneração". */

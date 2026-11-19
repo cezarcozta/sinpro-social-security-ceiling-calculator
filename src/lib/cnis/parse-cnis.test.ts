@@ -247,6 +247,214 @@ describe('montarExtrato sobre o extrato de exemplo', () => {
   });
 });
 
+/**
+ * Extratos sintéticos: as classes de entrada abaixo não existem no extrato de exemplo,
+ * e cada uma delas já custou uma competência perdida em silêncio.
+ */
+const MARCA = 'CNIS - Cadastro Nacional de Informações Sociais';
+type Celula = [x: number, str: string];
+
+function extratoSintetico(linhas: Array<[y: number, celulas: Celula[]]>, page = 1): TextItem[] {
+  const itens: TextItem[] = [{ page, x: 280, y: 59, str: MARCA }];
+  for (const [y, celulas] of linhas) {
+    for (const [x, str] of celulas) itens.push({ page, x, y, str });
+  }
+  return itens;
+}
+
+const CABECALHO_VINCULO: [number, Celula[]] = [
+  200,
+  [[35, 'Seq.'], [87, 'NIT'], [152, 'Código Emp.'], [301, 'Origem do Vínculo'], [475, 'Trabalhador'],
+   [582, 'Tipo Filiado no Vínculo'], [650, 'Data Início'], [705, 'Data Fim'], [755, 'Últ. Remun.']],
+];
+const LINHA_VINCULO_CI: [number, Celula[]] = [
+  214,
+  [[42, '1'], [67, '123.45678.90-1'], [139, '11.222.333/0001-81'], [287, 'ESCOLA BETA'],
+   [554, 'Contribuinte Individual'], [651, '01/2020'], [702, '12/2020'], [765, '12/2020']],
+];
+const cabecalhoPrestador = (y: number): [number, Celula[]] => [
+  y,
+  [[43, 'Competência'], [120, 'Contrat.'], [200, 'Estabelecimento'], [300, 'Tomador'],
+   [400, 'Forma Prestação Serviço'], [560, 'Remuneração'], [680, 'Indicadores']],
+];
+const cabecalhoProprio = (y: number): [number, Celula[]] => [
+  y,
+  [[43, 'Competência'], [120, 'Data Pgto.'], [200, 'Contribuição'], [300, 'Salário Contribuição'], [420, 'Indicadores']],
+];
+
+describe('montarExtrato — vínculo com duas tabelas', () => {
+  it('não descarta a primeira tabela em silêncio quando a segunda tem outro layout', () => {
+    const { extrato: e, warnings: w } = montarExtrato(
+      extratoSintetico([
+        CABECALHO_VINCULO,
+        LINHA_VINCULO_CI,
+        [251, [[54, 'Remunerações']]],
+        cabecalhoPrestador(267),
+        [290, [[43, '01/2020'], [560, '5.000,00']]],
+        [310, [[54, 'Contribuições']]],
+        cabecalhoProprio(330),
+        [350, [[43, '02/2020'], [120, '15/03/2020'], [200, '55,00'], [300, '1.100,00']]],
+      ]),
+    );
+    // A natureza do vínculo é uma só, mas a lista que ela deixa de fora não pode evaporar.
+    expect(w).toEqual([
+      expect.objectContaining({ codigo: 'TABELA_DESCARTADA', seq: 1, detalhe: expect.stringContaining('01/2020') }),
+    ]);
+    expect(e.vinculos).toHaveLength(1);
+  });
+
+  it('reinicia a costura de indicadores a cada tabela nova do mesmo vínculo', () => {
+    const { extrato: e } = montarExtrato(
+      extratoSintetico([
+        CABECALHO_VINCULO,
+        LINHA_VINCULO_CI,
+        [251, [[54, 'Contribuições']]],
+        cabecalhoProprio(267),
+        [290, [[43, '01/2020'], [120, '15/02/2020'], [200, '55,00'], [300, '1.100,00'], [420, 'IREC-MEI']]],
+        [310, [[54, 'Contribuições']]],
+        cabecalhoProprio(330),
+        // Linha só com indicador, antes de qualquer competência desta tabela: não há a quem
+        // costurar, e costurar na competência da tabela anterior seria inventar dado.
+        [350, [[420, 'IREC-LC123']]],
+      ]),
+    );
+    const v1 = e.vinculos[0];
+    if (v1.natureza !== 'CI_PROPRIO') throw new Error('natureza inesperada');
+    expect(v1.contribuicoes[0].indicadores).toEqual(['IREC-MEI']);
+  });
+});
+
+const CABECALHO_CLT_TABELA = (y: number): [number, Celula[]] => [
+  y,
+  [[43, 'Competência'], [131, 'Remuneração'], [221, 'Indicadores']],
+];
+const LINHA_VINCULO_CLT: [number, Celula[]] = [
+  214,
+  [[42, '1'], [67, '123.45678.90-1'], [139, '12.345.678/0001-95'], [287, 'COLEGIO ALFA'],
+   [554, 'Empregado ou Agente Público'], [651, '01/2020'], [702, '05/2020'], [765, '05/2020']],
+];
+
+describe('montarExtrato — rótulo de seção ilegível', () => {
+  it('abre a tabela pelo cabeçalho de colunas quando o rótulo da seção não é reconhecido', () => {
+    // "Remunerações" partido em dois itens vira o texto "Remuneraç ões", que não casa com
+    // o rótulo de seção. Sem isto a tabela inteira era engolida pela continuação do vínculo
+    // e o usuário recebia "vínculo sem tabela de competências" — aviso enganoso.
+    const { extrato: e, warnings: w } = montarExtrato(
+      extratoSintetico([
+        CABECALHO_VINCULO,
+        LINHA_VINCULO_CLT,
+        [251, [[54, 'Remuneraç'], [110, 'ões']]],
+        CABECALHO_CLT_TABELA(267),
+        [290, [[43, '01/2020'], [131, '5.000,00']]],
+        [305, [[43, '02/2020'], [131, '5.100,00']]],
+      ]),
+    );
+    expect(remunerado(e, 1).remuneracoes.map((r) => r.competencia)).toEqual(['01/2020', '02/2020']);
+    expect(w).toEqual([]);
+  });
+});
+
+describe('montarExtrato — tabela que continua sem repetir o cabeçalho de colunas', () => {
+  it('reaproveita as colunas da tabela anterior em vez de abandonar as competências', () => {
+    // Página de continuação que repete o rótulo da seção mas não o cabeçalho de colunas.
+    const pagina1 = extratoSintetico([
+      CABECALHO_VINCULO,
+      LINHA_VINCULO_CLT,
+      [251, [[54, 'Remunerações']]],
+      CABECALHO_CLT_TABELA(267),
+      [290, [[43, '01/2020'], [131, '5.000,00']]],
+      [305, [[43, '02/2020'], [131, '5.100,00']]],
+    ]);
+    const pagina2 = extratoSintetico(
+      [
+        [100, [[54, 'Remunerações']]],
+        [120, [[43, '03/2020'], [131, '9.000,00']]],
+        [135, [[43, '04/2020'], [131, '9.100,00']]],
+      ],
+      2,
+    ).filter((i) => i.str !== MARCA);
+    const { extrato: e, warnings: w } = montarExtrato([...pagina1, ...pagina2]);
+    expect(remunerado(e, 1).remuneracoes.map((r) => r.competencia)).toEqual([
+      '01/2020', '02/2020', '03/2020', '04/2020',
+    ]);
+    expect(w).toEqual([
+      expect.objectContaining({ codigo: 'CABECALHO_REAPROVEITADO', pagina: 2, seq: 1 }),
+    ]);
+  });
+});
+
+describe('montarExtrato — bloco pulado', () => {
+  it('diz quantas competências ficaram de fora quando o vínculo não pôde ser lido', () => {
+    // Linha de vínculo sem seq: o vínculo é pulado, e com ele a tabela inteira. O aviso de
+    // layout não dizia o tamanho do prejuízo; agora um segundo aviso lista as competências.
+    const { extrato: e, warnings: w } = montarExtrato(
+      extratoSintetico([
+        CABECALHO_VINCULO,
+        [214, [[139, '12.345.678/0001-95'], [554, 'Empregado ou Agente Público']]],
+        [251, [[54, 'Remunerações']]],
+        CABECALHO_CLT_TABELA(267),
+        [290, [[43, '01/2020'], [131, '5.000,00']]],
+        [305, [[43, '02/2020'], [131, '5.100,00']]],
+      ]),
+    );
+    expect(e.vinculos).toEqual([]);
+    expect(w.map((aviso) => aviso.codigo)).toEqual(['LAYOUT_DESCONHECIDO', 'BLOCO_PULADO']);
+    expect(w[1].detalhe).toContain('01/2020');
+    expect(w[1].detalhe).toContain('02/2020');
+  });
+});
+
+describe('montarExtrato — cabeçalho de vínculo repetido no meio da tabela', () => {
+  it('o aviso carrega o seq lido e diz que a linha veio no meio de uma tabela', () => {
+    const { extrato: e, warnings: w } = montarExtrato(
+      extratoSintetico([
+        CABECALHO_VINCULO,
+        LINHA_VINCULO_CLT,
+        [251, [[54, 'Remunerações']]],
+        CABECALHO_CLT_TABELA(267),
+        [290, [[43, '01/2020'], [131, '5.000,00']]],
+        // Cabeçalho de vínculo repetido: a linha de dados seguinte é lida como linha de
+        // vínculo, com "02/2020" caindo na coluna Seq.
+        [305, [[35, 'Seq.'], [87, 'NIT'], [152, 'Código Emp.'], [301, 'Origem do Vínculo'],
+               [475, 'Trabalhador'], [582, 'Tipo Filiado no Vínculo'], [650, 'Data Início'],
+               [705, 'Data Fim'], [755, 'Últ. Remun.']]],
+        [320, [[43, '02/2020'], [131, '5.100,00']]],
+        [335, [[43, '03/2020'], [131, '5.200,00']]],
+      ]),
+    );
+    expect(remunerado(e, 1).remuneracoes.map((r) => r.competencia)).toEqual(['01/2020']);
+    expect(w[0]).toEqual(
+      expect.objectContaining({ codigo: 'LAYOUT_DESCONHECIDO', seq: 2, detalhe: expect.stringContaining('02/2020') }),
+    );
+    expect(w[1]).toEqual(expect.objectContaining({ codigo: 'BLOCO_PULADO', detalhe: expect.stringContaining('03/2020') }));
+  });
+});
+
+describe('montarExtrato — indicador partido no hífen', () => {
+  it('junta as duas metades do código em vez de criar dois indicadores', () => {
+    // Vínculo 4, 01/2013: o PDF corta "PSC-MEN-SM-EC103" no hífen, numa linha visual acima
+    // ("PSC-MEN-SM-") e outra abaixo ("EC103"). A F2 compara indicador por string exata.
+    const { extrato: e, warnings: w } = montarExtrato(itens);
+    expect(remunerado(e, 4).remuneracoes.find((r) => r.competencia === '01/2013')!.indicadores).toEqual([
+      'PSC-MEN-SM-EC103',
+    ]);
+    expect(w).toEqual([]);
+  });
+
+  it('junta também quando as duas metades caem na mesma célula', () => {
+    // Mesmo corte, mas com as metades perto o bastante para virarem uma célula só:
+    // celulasPorGrupo junta com espaço, e "PSC-MEN-SM- EC103" não é o código do CNIS.
+    const mesmaCelula = itens.map((i) =>
+      i.page === 2 && i.str === 'EC103' ? { ...i, y: 476, x: 232 } : i,
+    );
+    const { extrato: e, warnings: w } = montarExtrato(mesmaCelula);
+    expect(remunerado(e, 4).remuneracoes.find((r) => r.competencia === '01/2013')!.indicadores).toEqual([
+      'PSC-MEN-SM-EC103',
+    ]);
+    expect(w).toEqual([]);
+  });
+});
+
 describe('montarExtrato — casos de erro e aviso', () => {
   it('lança NAO_E_CNIS quando o documento não é um extrato CNIS', () => {
     try {
@@ -283,6 +491,8 @@ describe('montarExtrato — casos de erro e aviso', () => {
     // Sem cabeçalho reconhecido o vínculo 1 fica sem tabela: natureza inferida do tipo de filiado.
     expect(w).toEqual([
       expect.objectContaining({ codigo: 'LAYOUT_DESCONHECIDO', pagina: 1, seq: 1 }),
+      // As 16 competências do vínculo 1 ficaram de fora: o usuário tem que saber o tamanho.
+      expect.objectContaining({ codigo: 'BLOCO_PULADO', detalhe: expect.stringContaining('16 competência') }),
       expect.objectContaining({ codigo: 'NATUREZA_INDEFINIDA', pagina: 1, seq: 1 }),
     ]);
     expect(remunerado(e, 1).remuneracoes).toEqual([]);
@@ -293,7 +503,10 @@ describe('montarExtrato — vínculo ilegível', () => {
   it('emite LAYOUT_DESCONHECIDO e não classifica como não-CLT quando o tipo de filiado não é lido', () => {
     const alterado = itens.map((i) => (i.page === 1 && i.str === 'Vínculo' && i.x === 582 ? { ...i, str: 'Outro' } : i));
     const { extrato: e, warnings: w } = montarExtrato(alterado);
-    expect(w).toEqual([expect.objectContaining({ codigo: 'LAYOUT_DESCONHECIDO', pagina: 1 })]);
+    expect(w).toEqual([
+      expect.objectContaining({ codigo: 'LAYOUT_DESCONHECIDO', pagina: 1 }),
+      expect.objectContaining({ codigo: 'BLOCO_PULADO', detalhe: expect.stringContaining('16 competência') }),
+    ]);
     expect(e.vinculos.map((v) => v.seq)).toEqual([2, 3, 4, 5]);
     expect(e.vinculos.filter((v) => v.natureza !== 'CLT').map((v) => v.seq)).toEqual([2, 3, 5]);
   });
@@ -306,6 +519,7 @@ describe('montarExtrato — tipo de filiado não reconhecido', () => {
     const { extrato: e, warnings: w } = montarExtrato(trocar('Empregado ou Agente', 'Empregado Doméstico'));
     expect(w).toEqual([
       expect.objectContaining({ codigo: 'LAYOUT_DESCONHECIDO', pagina: 1, seq: 1, detalhe: expect.stringContaining('Empregado Doméstico Público') }),
+      expect.objectContaining({ codigo: 'BLOCO_PULADO', detalhe: expect.stringContaining('16 competência') }),
     ]);
     expect(e.vinculos.map((v) => v.seq)).toEqual([2, 3, 4, 5]);
     expect(e.vinculos.filter((v) => v.natureza !== 'CLT').map((v) => v.seq)).toEqual([2, 3, 5]);
@@ -313,7 +527,10 @@ describe('montarExtrato — tipo de filiado não reconhecido', () => {
 
   it('sonda 2: quebra de linha diferente que deixa o tipo truncado vira LAYOUT_DESCONHECIDO', () => {
     const { extrato: e, warnings: w } = montarExtrato(trocar('Empregado ou Agente', 'Empregado ou'));
-    expect(w).toEqual([expect.objectContaining({ codigo: 'LAYOUT_DESCONHECIDO', seq: 1 })]);
+    expect(w).toEqual([
+      expect.objectContaining({ codigo: 'LAYOUT_DESCONHECIDO', seq: 1 }),
+      expect.objectContaining({ codigo: 'BLOCO_PULADO', detalhe: expect.stringContaining('16 competência') }),
+    ]);
     expect(e.vinculos.map((v) => v.seq)).toEqual([2, 3, 4, 5]);
     expect(e.vinculos.filter((v) => v.natureza !== 'CLT').map((v) => v.seq)).toEqual([2, 3, 5]);
   });
@@ -332,7 +549,10 @@ describe('montarExtrato — seq obrigatório', () => {
   it('sem seq legível emite LAYOUT_DESCONHECIDO, pula o vínculo e não registra seq 0', () => {
     const semSeq = itens.filter((i) => !(i.page === 1 && i.str === '1' && i.x === 42 && i.y === 214));
     const { extrato: e, warnings: w } = montarExtrato(semSeq);
-    expect(w).toEqual([expect.objectContaining({ codigo: 'LAYOUT_DESCONHECIDO', pagina: 1 })]);
+    expect(w).toEqual([
+      expect.objectContaining({ codigo: 'LAYOUT_DESCONHECIDO', pagina: 1 }),
+      expect.objectContaining({ codigo: 'BLOCO_PULADO', detalhe: expect.stringContaining('16 competência') }),
+    ]);
     expect(e.vinculos.map((v) => v.seq)).toEqual([2, 3, 4, 5]);
     expect(e.vinculos.every((v) => v.seq > 0)).toBe(true);
   });
