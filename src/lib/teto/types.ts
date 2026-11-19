@@ -26,3 +26,14 @@ export type TabelaVigencia = {
  * ausente sai aqui, e a F3 exibe (regra "falhar aberto", §9 da spec).
  */
 export type AvisoTeto = { codigo: string; competencia: string; detalhe: string };
+
+/**
+ * Elegibilidade da competência. `diasRestantes` fica negativo depois de prescrever, e
+ * `urgente` (≤ 90 dias) é o que transforma a triagem em ação.
+ */
+export type Prescricao = {
+  prescreveEm: string;
+  noPrazo: boolean;
+  diasRestantes: number;
+  urgente: boolean;
+};
