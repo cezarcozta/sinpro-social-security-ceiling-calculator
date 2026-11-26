@@ -65,11 +65,12 @@ describe('Veredito — o acumulado', () => {
     expect(screen.getByText(/90 dias/i)).toBeTruthy();
   });
 
-  it('encaminha a restituição ao sindicato e nomeia o rito sem ensiná-lo', () => {
+  it('nomeia o rito da restituição sem ensiná-lo, e sem mandar o professor a ninguém', () => {
     montar();
-    expect(screen.getAllByText(/Sinpro-ABC/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/PER\/DCOMP/).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: /e-CAC/i })).toBeNull();
+    // A tela não tem destinatário: não existe canal para encaminhar o professor.
+    expect(document.body.textContent).not.toMatch(/sindicato|sinpro/i);
   });
 
   it('o achado do MEI aparece fora dos totais, com o rito próprio', () => {
@@ -153,8 +154,7 @@ describe('Veredito — correções da revisão final', () => {
   it('lista o mês contestado e reetiqueta o total como "pelos meses que você confirmou"', () => {
     montar(RESULTADO_GATILHOS, PARSE_GATILHOS, { '08/2024': 'naoBate' });
     expect(screen.getByText(/pelos meses que você confirmou/i)).toBeTruthy();
-    // string exata: a frase do aviso do INSS também contém "conferir com o sindicato"
-    const conferir = screen.getByText('Conferir com o sindicato').closest('div')!;
+    const conferir = screen.getByText('Meses a reconferir').closest('div')!;
     expect(conferir.textContent).toContain('08/2024');
   });
 
@@ -165,7 +165,7 @@ describe('Veredito — correções da revisão final', () => {
         .map((c) => [c.competencia, 'naoBate' as const]),
     );
     montar(RESULTADO_GATILHOS, PARSE_GATILHOS, marcas);
-    const conferir = screen.getByText('Conferir com o sindicato').closest('div')!;
+    const conferir = screen.getByText('Meses a reconferir').closest('div')!;
     expect(conferir.textContent).toContain('12/2021');
     expect(conferir.textContent).toContain('08/2024');
   });

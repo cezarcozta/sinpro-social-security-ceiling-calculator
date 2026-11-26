@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { SINDICATO } from '@/lib/apresentacao/sindicato';
 
 /**
  * As duas frases que a §9 da spec da F2 marca como **rodapé permanente**: estimativa de
@@ -15,8 +14,8 @@ export function Rodape(): ReactNode {
     <footer className="flex flex-col gap-1 border-t border-neutral-300 pt-4 text-sm text-neutral-800">
       <p>
         Este resultado é uma <strong>estimativa de triagem</strong>, não cálculo oficial nem
-        parecer jurídico ou contábil. Confira com o {SINDICATO.nome} antes de levar ao RH ou
-        pedir restituição.
+        parecer jurídico ou contábil. Confira os números contra o seu extrato antes de levar
+        ao RH ou pedir restituição.
       </p>
       <p>
         Seu extrato <strong>não sai do seu navegador</strong>: a leitura e o cálculo acontecem

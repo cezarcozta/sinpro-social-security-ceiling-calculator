@@ -4,7 +4,6 @@ import type { ResultadoCompetencia, ResultadoTeto } from '@/lib/teto';
 import { agruparPorAno } from '@/lib/apresentacao/anos';
 import { textoDivergencia } from '@/lib/apresentacao/divergencia';
 import { fontesPorCompetencia, type FontePagadora } from '@/lib/apresentacao/fontes';
-import { SINDICATO } from '@/lib/apresentacao/sindicato';
 import type { Marca, Marcas } from '@/lib/apresentacao/veredito';
 import { Dinheiro } from './dinheiro';
 import { Rodape } from './rodape';
@@ -162,11 +161,10 @@ function LinhaMes({
         {marca === 'naoBate' && (
           <div className="no-print flex flex-col gap-1 rounded-md bg-neutral-100 p-3">
             <label htmlFor={`divergencia-${competencia}`} className="text-sm font-medium">
-              Texto para enviar ao sindicato
+              Texto do mês que não bateu
             </label>
             <p className="text-sm text-neutral-800">
-              Copie e envie ao {SINDICATO.nome}
-              {SINDICATO.contato ? ` (${SINDICATO.contato})` : ''}. Nada é enviado
+              Copie para registro, se quiser guardar o que lemos neste mês. Nada é enviado
               automaticamente: só sai do seu dispositivo se você mesmo mandar.
             </p>
             <textarea
@@ -211,8 +209,8 @@ export function Conferencia({
         <h2 className="text-xl font-semibold">Confira mês a mês</h2>
         <p className="text-base">
           Compare cada mês com o PDF do seu extrato antes de usar qualquer número. Se algum mês
-          não bater, diga aqui: ele sai do total a pedir e você recebe um texto para mandar ao{' '}
-          {SINDICATO.nome}.
+          não bater, diga aqui: ele sai do total a pedir e você recebe um texto com o que lemos
+          nesse mês, para guardar.
         </p>
       </header>
 

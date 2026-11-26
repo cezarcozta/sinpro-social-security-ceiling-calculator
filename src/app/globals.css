@@ -23,8 +23,8 @@ body {
 }
 
 /*
- * Impressão da conferência: o professor leva a folha ao sindicato ou usa como roteiro do
- * pedido no e-CAC. Os rótulos de natureza e de prescrição **continuam visíveis** — uma folha
+ * Impressão da conferência: o professor guarda a folha ou a usa como roteiro do pedido no
+ * e-CAC. Os rótulos de natureza e de prescrição **continuam visíveis** — uma folha
  * sem eles é exatamente o "número solto" que a §9 da spec da F2 proíbe.
  *
  * Abrir todos os anos é um controle na tela, não uma regra aqui: forçar `<details>` aberto

@@ -30,7 +30,7 @@ export type AvisoExibivel = {
   /**
    * `false` = código que esta versão da tela não conhece. A tela então **exibe o código
    * cru** junto da frase genérica (§6.5 do design da F3): sem isso, um motor mais novo que a
-   * tela produziria um aviso impossível de reportar ao sindicato.
+   * tela produziria um aviso impossível de identificar.
    */
   conhecido: boolean;
 };
@@ -112,7 +112,7 @@ export const FRASES: Record<WarningCode | CodigoAvisoTeto, { frase: string; grav
 
 const GENERICO = {
   frase:
-    'Houve uma linha do extrato que não entendemos. O resultado pode estar incompleto — confira com o sindicato.',
+    'Houve uma linha do extrato que não entendemos. O resultado pode estar incompleto — confira os valores contra o seu extrato.',
   gravidade: 'alta' as const,
 };
 
@@ -214,7 +214,7 @@ export function avisosExibiveis(parse: ParseResult, teto: ResultadoTeto): AvisoE
     lista.push({
       codigo: 'INDICADORES_INSS',
       frase:
-        'O INSS marcou pendência em partes do seu extrato. Isso pode afetar os valores registrados — vale conferir com o sindicato.',
+        'O INSS marcou pendência em partes do seu extrato. Isso pode afetar os valores registrados — vale conferir no extrato original.',
       gravidade: 'media',
       conhecido: true,
       origem: 'inss',

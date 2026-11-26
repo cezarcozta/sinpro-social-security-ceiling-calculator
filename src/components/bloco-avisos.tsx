@@ -34,7 +34,7 @@ export function BlocoAvisos({ avisos }: { avisos: AvisoExibivel[] }): ReactNode 
               {aviso.contexto ? `${aviso.contexto} — ` : ''}
               {aviso.detalhe}
               {/* Código cru só quando a tela não conhece o aviso: é o que o professor tem
-                  para reportar ao sindicato, e sem ele o aviso é irreportável. Para código
+                  para identificar o caso, e sem ele o aviso é irreportável. Para código
                   conhecido, a sigla seria ruído. */}
               {aviso.conhecido ? '' : ` (código ${aviso.codigo})`}
             </span>

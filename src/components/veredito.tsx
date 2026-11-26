@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import type { ParseResult } from '@/lib/cnis';
 import type { ResultadoTeto } from '@/lib/teto';
 import { avisosExibiveis } from '@/lib/apresentacao/avisos';
-import { SINDICATO } from '@/lib/apresentacao/sindicato';
 import { derivarVeredito, type Marcas } from '@/lib/apresentacao/veredito';
 import { BlocoAvisos } from './bloco-avisos';
 import { Dinheiro } from './dinheiro';
@@ -12,8 +11,8 @@ import { Rodape } from './rodape';
  * A tela de veredito: dois resultados, dois próximos passos.
  *
  * A ordem é decisão de produto (Cesar, 19/11/2026): lidera **parar a sangria**, porque é a
- * ação mais barata para o professor — entregar um papel no RH — e a que o sindicato apoia
- * sem advogado. O acumulado vem abaixo, como o que já se perdeu.
+ * ação mais barata para o professor — entregar um papel no RH — e a única que ele resolve
+ * sozinho, sem advogado. O acumulado vem abaixo, como o que já se perdeu.
  *
  * O risco número um desta tela é o professor achar que a carta ao RH devolve o passado. Por
  * isso cada bloco diz, no próprio texto, qual é o seu alcance.
@@ -122,8 +121,8 @@ export function Veredito({
         {sangria.tipo === 'divergente' && (
           <p className="mt-2 text-base">
             Você disse que a nossa leitura de {sangria.competencia} não bate com o seu
-            extrato, então não vamos afirmar nada sobre esse mês. Procure o {SINDICATO.nome}{' '}
-            com o texto que a conferência gerou.
+            extrato, então não vamos afirmar nada sobre esse mês. A conferência gerou um texto
+            com o que lemos nesse mês, para você guardar.
           </p>
         )}
 
@@ -137,8 +136,7 @@ export function Veredito({
         {sangria.tipo === 'nadaAvaliado' && (
           <p className="mt-2 text-base">
             Nenhum mês do seu extrato pôde ser avaliado — ou ele não traz competências, ou
-            todas estão fora do período que esta calculadora cobre (2021 a 2026). Procure o{' '}
-            {SINDICATO.nome}.
+            todas estão fora do período que esta calculadora cobre (2021 a 2026).
           </p>
         )}
       </section>
@@ -215,8 +213,8 @@ export function Veredito({
           {acumulado.competenciasDivergentes.length > 0 && (
             <div className="mt-3 rounded-md bg-neutral-100 px-3 py-2 text-base">
               <p>
-                <strong>Conferir com o sindicato</strong> — você disse que a nossa leitura
-                destes meses não bate com o seu extrato, então eles ficaram fora do total:
+                <strong>Meses a reconferir</strong> — você disse que a nossa leitura destes
+                meses não bate com o seu extrato, então eles ficaram fora do total:
               </p>
               <p className="mt-1">{acumulado.competenciasDivergentes.join(', ')}</p>
             </div>
@@ -233,9 +231,8 @@ export function Veredito({
 
           <p className="mt-3 text-base">
             Esse dinheiro segue um caminho diferente da declaração: é pedido de restituição,
-            mês a mês, no PER/DCOMP Web da Receita Federal. Procure o {SINDICATO.nome}
-            {SINDICATO.contato ? ` (${SINDICATO.contato})` : ''} antes de abrir o pedido — um
-            pedido malfeito é negado e consome o prazo.
+            mês a mês, no PER/DCOMP Web da Receita Federal. Confira os valores contra o seu
+            extrato antes de abrir o pedido — um pedido malfeito é negado e consome o prazo.
           </p>
 
         </section>
