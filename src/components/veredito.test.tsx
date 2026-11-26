@@ -11,7 +11,7 @@ import type { ResultadoTeto } from '@/lib/teto';
 
 afterEach(cleanup);
 
-const PARSE_LIMPO = { extrato: { filiado: {}, vinculos: [] }, warnings: [] };
+const PARSE_LIMPO = { extrato: { filiado: {}, vinculos: [], legenda: [] }, warnings: [] };
 
 function montar(teto: ResultadoTeto = RESULTADO_GATILHOS, parse = PARSE_GATILHOS, marcas = {}) {
   const onConferir = vi.fn();

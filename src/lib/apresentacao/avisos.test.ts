@@ -17,7 +17,7 @@ const TETO_VAZIO: ResultadoTeto = {
   },
 };
 
-const PARSE_VAZIO: ParseResult = { extrato: { filiado: {}, vinculos: [] }, warnings: [] };
+const PARSE_VAZIO: ParseResult = { extrato: { filiado: {}, vinculos: [], legenda: [] }, warnings: [] };
 
 const vinculo = (seq: number, indicadores?: string[]): Vinculo => ({
   seq,
@@ -69,6 +69,7 @@ describe('avisosExibiveis', () => {
     const parse: ParseResult = {
       extrato: {
         filiado: {},
+        legenda: [],
         vinculos: [vinculo(1, ['PREM-EXT']), vinculo(2, ['IREM-INDPEND', 'IRE-INSS']), vinculo(3)],
       },
       warnings: [],
@@ -100,6 +101,7 @@ describe('avisosExibiveis', () => {
     const parse: ParseResult = {
       extrato: {
         filiado: {},
+        legenda: [],
         vinculos: [
           {
             seq: 1,

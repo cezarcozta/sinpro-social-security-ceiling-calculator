@@ -79,7 +79,7 @@ describe('§9 da spec da F2 — disclaimers obrigatórios', () => {
     const texto = render(
       <Veredito
         teto={{ ...RESULTADO_GATILHOS, competencias: [], achados: [], avisos: [] }}
-        parse={{ extrato: { filiado: {}, vinculos: [] }, warnings: [] }}
+        parse={{ extrato: { filiado: {}, vinculos: [], legenda: [] }, warnings: [] }}
         marcas={{}}
         onConferir={() => {}}
       />,

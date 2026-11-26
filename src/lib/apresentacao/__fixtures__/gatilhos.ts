@@ -212,6 +212,7 @@ export const RESULTADO_VAZIO: ResultadoTeto = {
 export const PARSE_GATILHOS: ParseResult = {
   extrato: {
     filiado: { nome: 'MARIA DE EXEMPLO', nit: '123.45678.90-1', cpf: '111.222.333-44' },
+    legenda: [],
     vinculos: [
       {
         seq: 1,

@@ -33,6 +33,7 @@ describe('fontesPorCompetencia', () => {
   it('duas guias de recolhimento próprio no mesmo mês somam', () => {
     const extrato: CnisExtrato = {
       filiado: {},
+      legenda: [],
       vinculos: [
         {
           seq: 1,
@@ -62,6 +63,7 @@ describe('fontesPorCompetencia', () => {
   it('vínculo sem código de empregador recebe rótulo pelo número do vínculo', () => {
     const extrato: CnisExtrato = {
       filiado: {},
+      legenda: [],
       vinculos: [
         {
           seq: 7,
@@ -85,6 +87,6 @@ describe('fontesPorCompetencia', () => {
   });
 
   it('extrato sem vínculo devolve mapa vazio', () => {
-    expect(fontesPorCompetencia({ filiado: {}, vinculos: [] }).size).toBe(0);
+    expect(fontesPorCompetencia({ filiado: {}, vinculos: [], legenda: [] }).size).toBe(0);
   });
 });
