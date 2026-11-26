@@ -55,9 +55,11 @@ const GATILHOS: ReadonlyArray<readonly [string, string, RegExp, Onde]> = [
   ['ignoradasSemTabela.length > 0', 'não foram avaliadas', /fora do período coberto/i, 'conferencia'],
   ['avisos.length > 0', 'houve linha que não entendemos', /não pôde ser lido|não entendemos/i, 'veredito'],
   ['decimoTerceiro === true', 'o 13º tem teto próprio', /teto próprio/i, 'conferencia'],
-  ['sempre', 'estimativa de triagem, não cálculo oficial', /triagem/i, 'veredito'],
-  ['sempre', 'confira com o sindicato', /Sinpro-ABC/, 'ambas'],
-  ['sempre', 'nada do extrato sai do navegador', /não sai do seu navegador/i, 'veredito'],
+  // 'ambas', não 'veredito': a conferência é a tela que vira papel e sai do dispositivo.
+  // A §9 diz "rodapé permanente", e a tabela estava codificando a omissão.
+  ['sempre', 'estimativa de triagem, não cálculo oficial', /triagem/i, 'ambas'],
+  ['sempre', 'confira os números contra o extrato', /confira os números contra o seu extrato/i, 'ambas'],
+  ['sempre', 'nada do extrato sai do navegador', /não sai do seu navegador/i, 'ambas'],
 ] as const;
 
 describe('§9 da spec da F2 — disclaimers obrigatórios', () => {

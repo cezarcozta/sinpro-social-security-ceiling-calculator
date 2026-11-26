@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { textoDivergencia } from './divergencia';
-import { SINDICATO } from './sindicato';
 import { fontesPorCompetencia } from './fontes';
 import { PARSE_GATILHOS, RESULTADO_GATILHOS } from './__fixtures__/gatilhos';
 
@@ -45,9 +44,10 @@ describe('textoDivergencia', () => {
   });
 });
 
-describe('SINDICATO', () => {
-  it('nomeia o sindicato e deixa o contato explicitamente pendente', () => {
-    expect(SINDICATO.nome).toBe('Sinpro-ABC');
-    expect(SINDICATO.contato).toBeNull();
+describe('ausência de destinatário', () => {
+  it('não encaminha o professor a ninguém, nem nomeia instituição', () => {
+    const texto = textoDivergencia(agosto, fontesDeAgosto).toLowerCase();
+    expect(texto).not.toContain('sindicato');
+    expect(texto).not.toContain('sinpro');
   });
 });

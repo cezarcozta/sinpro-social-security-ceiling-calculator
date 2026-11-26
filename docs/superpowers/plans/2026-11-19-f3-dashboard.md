@@ -353,17 +353,16 @@ git commit -m "feat(f3): derivar os dois vereditos, com total recomposto e invar
 
 ---
 
-### Task 5: texto de divergência, sem PII, e o contato do sindicato
+### Task 5: texto de divergência, sem PII
 
 **Files:**
-- Create: `src/lib/apresentacao/divergencia.ts`, `src/lib/apresentacao/divergencia.test.ts`, `src/lib/apresentacao/sindicato.ts`
+- Create: `src/lib/apresentacao/divergencia.ts`, `src/lib/apresentacao/divergencia.test.ts`
 
 **Interfaces:**
 - Consumes: `ResultadoCompetencia`, `formatarCentavos` (Task 1).
 - Produces:
 ```ts
 export function textoDivergencia(c: ResultadoCompetencia): string;
-export const SINDICATO: { nome: string; contato: string | null };
 ```
 
 - [ ] **Step 1: Escrever o teste que falha**
@@ -392,9 +391,9 @@ it('avisa, dentro do texto, que ele não contém dados de identificação', () =
 Run: `npx vitest run src/lib/apresentacao/divergencia.test.ts`
 Expected: FAIL.
 
-- [ ] **Step 3: Implementar `textoDivergencia` e `SINDICATO`**
+- [ ] **Step 3: Implementar `textoDivergencia`**
 
-O texto é plano, pronto para colar em e-mail ou WhatsApp: a competência, uma linha por camada com natureza e valor, o total que o motor calculou, a frase "este texto não contém seu nome, CPF ou NIT" e a versão do app se houver. `SINDICATO.contato` nasce `null` — comentário no arquivo explica que é o único valor de espera do ciclo, a ser trocado pelo e-mail ou pela página do Sinpro-ABC antes de o app ir ao ar.
+O texto é plano, pronto para o professor copiar e guardar: a competência, uma linha por camada com natureza e valor, o total que o motor calculou, a frase "este texto não contém seu nome, CPF ou NIT" e a versão do app se houver. Ele não tem destinatário — a tela não encaminha o professor a ninguém.
 
 - [ ] **Step 4: Rodar e verificar que passa**
 
@@ -404,8 +403,8 @@ Expected: PASS, 3 testes.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/lib/apresentacao/divergencia.* src/lib/apresentacao/sindicato.ts
-git commit -m "feat(f3): texto de divergencia para o sindicato, sem dado de identificacao"
+git add src/lib/apresentacao/divergencia.*
+git commit -m "feat(f3): texto de divergencia, sem dado de identificacao"
 ```
 
 ---
@@ -492,7 +491,7 @@ git commit -m "feat(f3): componente Dinheiro com natureza obrigatoria, e jsdom n
 - Test: `src/components/veredito.test.tsx`
 
 **Interfaces:**
-- Consumes: `derivarVeredito` (Task 4), `avisosExibiveis` (Task 2), `Dinheiro` (Task 6), `SINDICATO` (Task 5), fixtures (Task 3).
+- Consumes: `derivarVeredito` (Task 4), `avisosExibiveis` (Task 2), `Dinheiro` (Task 6), `textoDivergencia` (Task 5), fixtures (Task 3).
 - Produces:
 ```tsx
 export function Veredito(props: {
@@ -516,7 +515,7 @@ it('sangria ativa nomeia o mês e não promete recuperar o passado', () => {
 it('mostra total a pedir e total prescrito como números separados, nunca somados', () => {});
 it('promove a contagem de meses urgentes', () => {});       // /prescrevem em até 90 dias/
 it('o achado do MEI aparece com o rito do e-CAC e fora dos totais', () => {});  // /2\.055/
-it('encaminha a restituição ao sindicato, sem ensinar o PER/DCOMP', () => {});
+it('nomeia o rito da restituição, sem ensinar o PER/DCOMP', () => {});
 it('o rodapé permanente traz triagem e privacidade', () => {});
 it('nadaAvaliado não diz "não encontramos mês acima do teto"', () => {});
 it('onConferir é chamado no botão de ver mês a mês', () => {});
@@ -529,7 +528,7 @@ Expected: FAIL.
 
 - [ ] **Step 3: Implementar `BlocoAvisos` e `Veredito`**
 
-`BlocoAvisos` é **um só** bloco, com as três origens juntas, `role="alert"` no contêiner (não em `<ul>`), contagem no topo. `Veredito` não calcula nada: tudo vem de `derivarVeredito` e `avisosExibiveis`. Todo valor em dinheiro passa pelo `Dinheiro`. O texto da restituição nomeia o rito em uma frase e encaminha ao `SINDICATO` — quando `contato` é `null`, "procure o Sinpro-ABC".
+`BlocoAvisos` é **um só** bloco, com as três origens juntas, `role="alert"` no contêiner (não em `<ul>`), contagem no topo. `Veredito` não calcula nada: tudo vem de `derivarVeredito` e `avisosExibiveis`. Todo valor em dinheiro passa pelo `Dinheiro`. O texto da restituição nomeia o rito em uma frase e manda conferir os valores contra o extrato antes de abrir o pedido, sem encaminhar a ninguém.
 
 - [ ] **Step 4: Rodar e verificar que passa**
 
@@ -750,5 +749,5 @@ git commit -m "feat(f3): folha de impressao da conferencia, para levar ao e-CAC"
 ## Ao fim do plano
 
 - [ ] `npx vitest run && npx eslint . && npx tsc --noEmit && npm run build` limpos.
-- [ ] Atualizar `docs/superpowers/pendencias-f1.md` com uma seção "Pendências depois da F3": contato do sindicato ainda em `null`; tema escuro fora de escopo; gráfico por ano derivável de `anos.ts`; Firefox, Safari e leitor de tela reais ainda não verificados, agora com formulário na tela; o portão de conferência da F4 ainda por definir.
+- [ ] Atualizar `docs/superpowers/pendencias-f1.md` com uma seção "Pendências depois da F3": tema escuro fora de escopo; gráfico por ano derivável de `anos.ts`; Firefox, Safari e leitor de tela reais ainda não verificados, agora com formulário na tela; o portão de conferência da F4 ainda por definir.
 - [ ] Abrir PR para `main`.

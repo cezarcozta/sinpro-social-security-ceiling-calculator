@@ -65,11 +65,12 @@ describe('Veredito — o acumulado', () => {
     expect(screen.getByText(/90 dias/i)).toBeTruthy();
   });
 
-  it('encaminha a restituição ao sindicato e nomeia o rito sem ensiná-lo', () => {
+  it('nomeia o rito da restituição sem ensiná-lo, e sem mandar o professor a ninguém', () => {
     montar();
-    expect(screen.getAllByText(/Sinpro-ABC/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/PER\/DCOMP/).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: /e-CAC/i })).toBeNull();
+    // A tela não tem destinatário: não existe canal para encaminhar o professor.
+    expect(document.body.textContent).not.toMatch(/sindicato|sinpro/i);
   });
 
   it('o achado do MEI aparece fora dos totais, com o rito próprio', () => {
@@ -128,5 +129,73 @@ describe('Veredito — caminho para a conferência', () => {
   it('extrato sem competência nenhuma não oferece conferência vazia', () => {
     montar(RESULTADO_VAZIO, PARSE_LIMPO);
     expect(screen.queryByRole('button', { name: /mês a mês/i })).toBeNull();
+  });
+});
+
+describe('Veredito — correções da revisão final', () => {
+  function semPrazo(): ResultadoTeto {
+    // todo mês com valor já prescrito: nada a pedir, mas há prescrito
+    return {
+      ...RESULTADO_GATILHOS,
+      competencias: RESULTADO_GATILHOS.competencias.map((c) => ({
+        ...c,
+        prescricao: { ...c.prescricao, noPrazo: false, urgente: false },
+      })),
+      resumo: { ...RESULTADO_GATILHOS.resumo, totalAPedirCentavos: 0, totalPrescritoCentavos: 23030 },
+    };
+  }
+
+  it('não imprime "R$ 0,00" rotulado "no prazo" quando não há mês no prazo', () => {
+    montar(semPrazo(), PARSE_LIMPO);
+    expect(screen.queryByText('R$ 0,00')).toBeNull();
+    expect(screen.getByText(/nenhum mês dentro do prazo/i)).toBeTruthy();
+  });
+
+  it('lista o mês contestado e reetiqueta o total como "pelos meses que você confirmou"', () => {
+    montar(RESULTADO_GATILHOS, PARSE_GATILHOS, { '08/2024': 'naoBate' });
+    expect(screen.getByText(/pelos meses que você confirmou/i)).toBeTruthy();
+    const conferir = screen.getByText('Meses a reconferir').closest('div')!;
+    expect(conferir.textContent).toContain('08/2024');
+  });
+
+  it('o bloco do acumulado não desaparece quando todo mês com valor foi contestado', () => {
+    const marcas = Object.fromEntries(
+      RESULTADO_GATILHOS.competencias
+        .filter((c) => c.retidoAMaiorCentavos > 0)
+        .map((c) => [c.competencia, 'naoBate' as const]),
+    );
+    montar(RESULTADO_GATILHOS, PARSE_GATILHOS, marcas);
+    const conferir = screen.getByText('Meses a reconferir').closest('div')!;
+    expect(conferir.textContent).toContain('12/2021');
+    expect(conferir.textContent).toContain('08/2024');
+  });
+
+  it('traz os dois contadores do resumo executivo da AGENTS.md', () => {
+    montar();
+    expect(
+      screen.getByText('Meses com múltiplos vínculos identificados:').nextElementSibling
+        ?.textContent,
+    ).toBe('6');
+    expect(
+      screen.getByText('Meses com contribuição acima do teto:').nextElementSibling?.textContent,
+    ).toBe('5');
+  });
+});
+
+describe('Veredito — aviso com código desconhecido', () => {
+  it('mostra o código cru de um aviso que a tela não conhece', () => {
+    const teto: ResultadoTeto = {
+      ...RESULTADO_VAZIO,
+      avisos: [
+        { codigo: 'FUTURO_X', competencia: '01/2026', detalhe: 'linha estranha' } as never,
+      ],
+    };
+    montar(teto, PARSE_LIMPO);
+    expect(screen.getByRole('alert').textContent).toContain('FUTURO_X');
+  });
+
+  it('não polui a tela com o código de um aviso que a tela conhece', () => {
+    montar(RESULTADO_GATILHOS, PARSE_GATILHOS);
+    expect(screen.getByRole('alert').textContent).not.toContain('BASE_AUSENTE');
   });
 });

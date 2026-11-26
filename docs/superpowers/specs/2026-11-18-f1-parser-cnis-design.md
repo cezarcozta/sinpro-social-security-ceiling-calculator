@@ -1,7 +1,7 @@
 # F1 — Upload e Parser de CNIS (design)
 
 Data: 2026-11-18
-Projeto: Calculadora de Teto Previdenciário (Sinpro-ABC)
+Projeto: Calculadora de Teto Previdenciário
 Escopo: **apenas F1**. F2 (motor de cálculo), F3 (dashboard/PWA) e F4 (declaração em PDF)
 são ciclos posteriores, cada um com seu próprio spec e plano.
 

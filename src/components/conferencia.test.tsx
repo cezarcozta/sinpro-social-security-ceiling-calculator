@@ -75,7 +75,7 @@ describe('Conferencia', () => {
 
   it('mês marcado "não bate" mostra o texto para copiar, sem CPF nem CNPJ', () => {
     montar({ '08/2024': 'naoBate' });
-    const texto = screen.getByLabelText(/texto para enviar ao sindicato/i) as HTMLTextAreaElement;
+    const texto = screen.getByLabelText(/texto do mês que não bateu/i) as HTMLTextAreaElement;
     expect(texto.value).toContain('08/2024');
     expect(texto.value).not.toMatch(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/);
     expect(texto.value).toMatch(/não contém/i);

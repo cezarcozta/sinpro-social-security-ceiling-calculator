@@ -33,6 +33,10 @@ export function BlocoAvisos({ avisos }: { avisos: AvisoExibivel[] }): ReactNode 
             <span className="block text-sm text-amber-900">
               {aviso.contexto ? `${aviso.contexto} — ` : ''}
               {aviso.detalhe}
+              {/* Código cru só quando a tela não conhece o aviso: é o que o professor tem
+                  para identificar o caso, e sem ele o aviso é irreportável. Para código
+                  conhecido, a sigla seria ruído. */}
+              {aviso.conhecido ? '' : ` (código ${aviso.codigo})`}
             </span>
           </li>
         ))}

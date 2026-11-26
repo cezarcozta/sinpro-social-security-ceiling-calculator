@@ -2,7 +2,7 @@
 
 Registradas na revisão final da F1 (2026-11-18) e deliberadamente deixadas para depois.
 Nenhuma bloqueia a F1; as duas primeiras seções são as que mais importam antes de o app
-ir ao ar para o sindicato.
+ir ao ar.
 
 ## Risco de validação: um único extrato real
 
@@ -43,8 +43,8 @@ permanece como teste de geometria verdadeira. Cenários a cobrir:
 - **Fase de conferência na UI:** mostrar a tabela mês a mês e pedir ao professor que
   confira contra o PDF antes de usar o número; rotular o resultado como estimativa.
 - **Canal de erro sem telemetria:** sem backend não há como saber que o parser falhou para
-  alguém. Um botão "o resultado não bate" que gere um texto para o professor enviar ao
-  sindicato — nenhum dado sai automaticamente, e o sindicato descobre layouts novos.
+  alguém. Um botão "o resultado não bate" que gere um texto para o professor guardar e levar
+  a quem for ajudá-lo — nenhum dado sai automaticamente.
 - **Empregado Doméstico** hoje gera aviso em vez de entrar como CLT. É segurado empregado
   do RGPS e seu salário de contribuição entra no teto, então a escolha atual falha fechada
   (avisa) em vez de subestimar em silêncio. Decisão de produto pendente.
@@ -199,11 +199,9 @@ Registradas no fim da execução do plano da F3 (2026-11-19). As telas vivem em
 
 ### Bloqueia o app ir ao ar
 
-- **O contato do sindicato é `null`.** `src/lib/apresentacao/sindicato.ts` tem o único valor
-  de espera do ciclo. A tela encaminha o professor ao Sinpro-ABC em três lugares (restituição
-  no e-CAC, divergência de leitura, veredito sem nada avaliado) e, enquanto o contato for
-  `null`, ela diz "procure o Sinpro-ABC" sem dar endereço. Trocar por e-mail ou pela página
-  antes de publicar.
+Nada. O único valor de espera do ciclo — o contato para onde a tela encaminhava o professor —
+deixou de existir em 26/11/2026, junto com o encaminhamento: a tela não tem mais
+destinatário, e os disclaimers da §9 mandam conferir os números contra o próprio extrato.
 
 ### Decisões da F3 que a F4 herda
 
@@ -220,7 +218,8 @@ Registradas no fim da execução do plano da F3 (2026-11-19). As telas vivem em
   razão social, ordem e a confirmação da remuneração atual.
 - **O texto de divergência não leva CNPJ**, por decisão de privacidade tomada na execução: um
   CNPJ de escola do Grande ABC reidentifica o professor. Se a F4 precisar do CNPJ num texto
-  que sai do dispositivo, é decisão nova.
+  que sai do dispositivo, é decisão nova. O texto também não tem destinatário: desde
+  26/11/2026 ele é "para guardar", não "para enviar".
 
 ### Abertas, não bloqueantes
 
@@ -246,3 +245,31 @@ Registradas no fim da execução do plano da F3 (2026-11-19). As telas vivem em
   os caminhos com dinheiro são provados pela fixture de gatilhos, não por dado real. Um
   extrato real com competência dentro de 2021–2026 cobriria os dois — e não haverá mais
   extratos reais, por decisão de privacidade.
+
+### Menores adiados pela revisão final da F3
+
+Levantados pelo revisor fresco do branch e deliberadamente não corrigidos — nenhum muda
+número na tela.
+
+- **`"2021 a 2026"` escrito à mão** em dois textos (`veredito.tsx`, `conferencia.tsx`),
+  duplicando o que vive em `teto/tabelas.ts`. Quando a tabela de 2027 entrar, a tela mente.
+  Derivar de `VIGENCIAS` — o aviso `DATA_SUSPEITA` já faz isso e serve de modelo.
+- **Borda do `<textarea>` da divergência em `neutral-400`** (~2,5:1), abaixo do critério de
+  3:1 que a própria spec adotou para controle de formulário. Botões e dropzone passam.
+- **`role="alert"` no bloco de avisos** deveria ser `role="region"` com `aria-labelledby`:
+  com dez avisos, um leitor de tela dispara tudo de uma vez e o bloco deixa de ser landmark.
+- **A conferência não mostra a contribuição paga do recolhimento próprio**, só o salário de
+  contribuição (que é a base do teto, e é coluna do CNIS — o rótulo "lido do extrato" está
+  correto). A contribuição paga é o dado mais forte do produto e ficaria bem ao lado.
+- **Fonte de R$ 0,00 no caso `BASE_AUSENTE`** aparece sem explicação na linha; a explicação
+  está no bloco de avisos, na outra tela.
+- **`<details open>` controlado sem `onToggle`**: "Fechar os anos" fecha também o ano que o
+  professor abriu à mão, porque o estado React não sabe o que ele abriu.
+- **Asserções condicionais no teste ponta a ponta**: com a fixture atual, `anos` é vazio e o
+  `if` guarda a única asserção útil. Se a fixture mudar, o teste passa a não afirmar nada.
+- **Sem error boundary**: `formatarCentavos` lança `RangeError` em entrada não inteira
+  (decisão correta na biblioteca), mas em runtime isso derrubaria a árvore e o professor
+  perderia o extrato lido, em vez de ver uma mensagem. Um boundary em `TelasDoResultado`
+  cumpriria "falhar aberto" na borda.
+- **`achados` sem fallback para `tipo` desconhecido**, ao contrário do cuidado que a §6.5
+  tomou com avisos. Hoje o motor emite um tipo só, então falha fechado sem consequência.

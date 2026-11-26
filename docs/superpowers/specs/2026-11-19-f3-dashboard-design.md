@@ -31,8 +31,8 @@ o passado — a pesquisa de UX apontou "próximo passo ambíguo" como o que mais
 usuários em páginas de resultado da mesma forma (elegibilidade + dinheiro + o que fazer).
 
 Decisão de produto, tomada por Cesar em 19/11/2026: a tela **lidera pela sangria**. É a
-ação mais barata (entregar um papel), a que o sindicato apoia sem advogado, e a de valor
-recorrente. A restituição vem abaixo, como o que já se perdeu.
+ação mais barata (entregar um papel), a única que o professor resolve sozinho, sem
+advogado, e a de valor recorrente. A restituição vem abaixo, como o que já se perdeu.
 
 ## 2. Goals, non-goals, anti-goals
 
@@ -225,8 +225,8 @@ sozinho"). Um mês real, nomeado, é a forma honesta.
 O 13º nunca entra na sangria atual: não é salário mensal e tem teto próprio.
 
 Se o professor marcar o último mês como **"não bate"** (§6.4), a cifra da sangria é
-substituída pela divergência e pelo caminho do sindicato. Mesma razão do total a pedir:
-não afirmar o que ele acabou de negar.
+substituída pelo registro da divergência. Mesma razão do total a pedir: não afirmar o que
+ele acabou de negar.
 
 **Defasagem do CNIS.** O extrato atrasa. Se `ultimaCompetencia` for mais de 4 meses
 anterior a `dataReferencia`, o bloco acrescenta: "seu extrato vai até MM/AAAA; se você
@@ -243,13 +243,12 @@ peso visual menor, rotulado "fora do pedido".
 prescrevem em menos de 90 dias". É o que transforma triagem em ação, e justifica puxar
 para o topo um dado que de outro modo ficaria enterrado na tabela.
 
-**Próximo passo deste bloco: o sindicato.** Decidido por Cesar em 19/11/2026. A tela
-nomeia o rito em uma frase — "pedido mês a mês no PER/DCOMP Web, no e-CAC" — e encaminha
-ao Sinpro-ABC, com contato visível. Ela **não** ensina o rito: um professor sozinho no
-PER/DCOMP erra o pedido, o sindicato é quem absorve o erro, e tutorial de sistema da
-Receita envelhece sem ninguém do projeto perceber. O contato fica numa **constante única**,
-`src/lib/apresentacao/sindicato.ts`, com valor de espera documentado, para ser trocado sem
-caçar pelo código.
+**Próximo passo deste bloco: nomear o rito, e nada além.** Decidido por Cesar em
+19/11/2026, e revisado em 26/11/2026. A tela nomeia o rito em uma frase — "pedido mês a mês
+no PER/DCOMP Web, no e-CAC" — e manda conferir os valores contra o extrato antes de abrir o
+pedido. Ela **não** ensina o rito, e **não encaminha a ninguém**: tutorial de sistema da
+Receita envelhece sem ninguém do projeto perceber, e um destinatário que a ferramenta não
+controla é promessa de canal que ela não cumpre.
 
 ### 6.3 O achado do MEI
 
@@ -274,7 +273,7 @@ existe justamente para dar o número antes do trabalho.
 Todas as competências têm o par de radio, inclusive as prescritas e o 13º (que é
 competência própria, em linha própria). Marcar "não bate" num mês prescrito não mexe no
 total a pedir — ele nunca esteve lá — mas desconta do total prescrito exibido e move a
-linha para a lista de "conferir com o sindicato".
+linha para a lista de "meses a reconferir".
 
 **Fonte da verdade dos totais.** `veredito.ts` **recompõe** os totais somando
 `retidoAMaiorCentavos` das competências, filtrando por `prescricao.noPrazo` e pela marca,
@@ -286,15 +285,15 @@ quebra — em vez de a tela exibir um número que o motor não assina.
 Um mês marcado **"não bate"**:
 
 - sai do `totalAPedirCentavos` exibido, que passa a mostrar "a pedir, pelos meses que você
-  confirmou", com o excluído listado à parte como "conferir com o sindicato";
+  confirmou", com o excluído listado à parte como "meses a reconferir";
 - não entra na carta da F4;
-- abre um bloco de texto pronto para o professor **copiar e enviar ao sindicato** por
+- abre um bloco de texto pronto para o professor **copiar e guardar** por
   conta própria (nada é enviado automaticamente — é a pendência "canal de erro sem
   telemetria" da F1, na sua forma mínima). **Conteúdo, decidido por Cesar em 19/11/2026:**
   a competência, os valores que o motor leu por empregador e o total que ele calculou —
   **sem nome, sem CPF, sem NIT**. Não é a opção mais restritiva possível (essa seria só "o
-  mês tal não bate"), e sim a mais protetiva que ainda permite ao sindicato descobrir um
-  layout de extrato novo. O próprio texto afirma, dentro dele, que não contém dados de
+  mês tal não bate"), e sim a mais protetiva que ainda permite diagnosticar um layout de
+  extrato novo. O próprio texto afirma, dentro dele, que não contém dados de
   identificação — para o professor saber o que está colando.
 
 A razão de excluir do total: o professor acabou de dizer que nossa leitura está errada
@@ -320,8 +319,8 @@ Duas decisões:
 ### 6.6 Lista para o e-CAC
 
 A conferência imprime: uma folha de estilo `@media print` que esconde navegação e
-controles e deixa a tabela mês a mês legível, para o professor levar ao e-CAC ou ao
-sindicato. Sem biblioteca de PDF — "salvar como PDF" é do navegador. É o item de menor
+controles e deixa a tabela mês a mês legível, para o professor usar como roteiro do pedido
+no e-CAC. Sem biblioteca de PDF — "salvar como PDF" é do navegador. É o item de menor
 prioridade do ciclo; se algo cair, cai este.
 
 ## 7. A tabela da §9, linha por linha, e onde cada uma vive
@@ -340,7 +339,7 @@ verificação do plano.
 | `ignoradasSemTabela.length > 0` | lista visível no fim da conferência: "não avaliadas, fora do período coberto" |
 | `avisos.length > 0` | aviso no topo do veredito, com contagem e as frases da §6.5 — não escondido em detalhe |
 | `decimoTerceiro === true` | linha do 13º rotulada "teto próprio, calculado em separado de dezembro" |
-| sempre | rodapé permanente: triagem, não cálculo oficial nem parecer; confira com o sindicato antes de levar ao RH |
+| sempre | rodapé permanente: triagem, não cálculo oficial nem parecer; confira os números contra o seu extrato antes de levar ao RH |
 | sempre | rodapé permanente: nada do extrato sai do navegador |
 
 Os onze cabem em quatro lugares: **colado no número** (quatro primeiras), **promovido ao

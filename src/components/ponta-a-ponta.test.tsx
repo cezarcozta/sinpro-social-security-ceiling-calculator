@@ -26,7 +26,7 @@ describe('ponta a ponta com o extrato de exemplo', () => {
   const teto = calcularTeto(parse.extrato, '2026-11-19');
 
   it('o veredito renderiza, sem NaN e sem valor sem rótulo', () => {
-    render(<TelasDoResultado parse={parse} teto={teto} />);
+    render(<TelasDoResultado parse={parse} teto={teto} onOutroExtrato={() => {}} />);
     expect(document.body.textContent).not.toContain('NaN');
     expect(document.body.textContent).not.toContain('undefined');
     // o rodapé permanente está lá qualquer que seja o veredito
@@ -35,7 +35,7 @@ describe('ponta a ponta com o extrato de exemplo', () => {
   });
 
   it('a conferência renderiza todos os anos do extrato real', () => {
-    render(<TelasDoResultado parse={parse} teto={teto} />);
+    render(<TelasDoResultado parse={parse} teto={teto} onOutroExtrato={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: /conferir|não avaliados/i }));
 
     const anos = screen
@@ -52,7 +52,7 @@ describe('ponta a ponta com o extrato de exemplo', () => {
   });
 
   it('todo valor em dinheiro da tela tem rótulo de natureza colado', () => {
-    render(<TelasDoResultado parse={parse} teto={teto} />);
+    render(<TelasDoResultado parse={parse} teto={teto} onOutroExtrato={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: /conferir|não avaliados/i }));
 
     const valores = [...document.querySelectorAll('span.whitespace-nowrap')];

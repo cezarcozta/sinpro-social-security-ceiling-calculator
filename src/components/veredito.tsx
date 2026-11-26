@@ -2,17 +2,17 @@ import type { ReactNode } from 'react';
 import type { ParseResult } from '@/lib/cnis';
 import type { ResultadoTeto } from '@/lib/teto';
 import { avisosExibiveis } from '@/lib/apresentacao/avisos';
-import { SINDICATO } from '@/lib/apresentacao/sindicato';
 import { derivarVeredito, type Marcas } from '@/lib/apresentacao/veredito';
 import { BlocoAvisos } from './bloco-avisos';
 import { Dinheiro } from './dinheiro';
+import { Rodape } from './rodape';
 
 /**
  * A tela de veredito: dois resultados, dois próximos passos.
  *
  * A ordem é decisão de produto (Cesar, 19/11/2026): lidera **parar a sangria**, porque é a
- * ação mais barata para o professor — entregar um papel no RH — e a que o sindicato apoia
- * sem advogado. O acumulado vem abaixo, como o que já se perdeu.
+ * ação mais barata para o professor — entregar um papel no RH — e a única que ele resolve
+ * sozinho, sem advogado. O acumulado vem abaixo, como o que já se perdeu.
  *
  * O risco número um desta tela é o professor achar que a carta ao RH devolve o passado. Por
  * isso cada bloco diz, no próprio texto, qual é o seu alcance.
@@ -31,7 +31,7 @@ export function Veredito({
   marcas: Marcas;
   onConferir: () => void;
 }): ReactNode {
-  const { sangria, acumulado } = derivarVeredito(teto, marcas);
+  const { sangria, acumulado, mesesComMultiplosVinculos } = derivarVeredito(teto, marcas);
   const avisos = avisosExibiveis(parse, teto);
   const mesDaSangria = sangria.tipo === 'nenhuma' || sangria.tipo === 'nadaAvaliado' ? null : sangria.competencia;
   const competenciaDaSangria = mesDaSangria
@@ -121,8 +121,8 @@ export function Veredito({
         {sangria.tipo === 'divergente' && (
           <p className="mt-2 text-base">
             Você disse que a nossa leitura de {sangria.competencia} não bate com o seu
-            extrato, então não vamos afirmar nada sobre esse mês. Procure o {SINDICATO.nome}{' '}
-            com o texto que a conferência gerou.
+            extrato, então não vamos afirmar nada sobre esse mês. A conferência gerou um texto
+            com o que lemos nesse mês, para você guardar.
           </p>
         )}
 
@@ -136,13 +136,27 @@ export function Veredito({
         {sangria.tipo === 'nadaAvaliado' && (
           <p className="mt-2 text-base">
             Nenhum mês do seu extrato pôde ser avaliado — ou ele não traz competências, ou
-            todas estão fora do período que esta calculadora cobre (2021 a 2026). Procure o{' '}
-            {SINDICATO.nome}.
+            todas estão fora do período que esta calculadora cobre (2021 a 2026).
           </p>
         )}
       </section>
 
-      {(acumulado.mesesAPedir > 0 || acumulado.mesesPrescritos > 0) && (
+      {teto.competencias.length > 0 && (
+        <dl className="flex flex-wrap gap-x-6 gap-y-1 text-base">
+          <div className="flex gap-2">
+            <dt>Meses com múltiplos vínculos identificados:</dt>
+            <dd className="font-medium">{mesesComMultiplosVinculos}</dd>
+          </div>
+          <div className="flex gap-2">
+            <dt>Meses com contribuição acima do teto:</dt>
+            <dd className="font-medium">{teto.resumo.mesesAcimaDoTeto}</dd>
+          </div>
+        </dl>
+      )}
+
+      {(acumulado.mesesAPedir > 0 ||
+        acumulado.mesesPrescritos > 0 ||
+        acumulado.competenciasDivergentes.length > 0) && (
         <section
           aria-labelledby="titulo-acumulado"
           className="rounded-lg border border-neutral-400 p-4 sm:p-5"
@@ -152,19 +166,31 @@ export function Veredito({
           </h2>
 
           <dl className="mt-3 flex flex-col gap-3">
-            <div>
-              <dt className="text-base">
-                Em {acumulado.mesesAPedir}{' '}
-                {acumulado.mesesAPedir === 1 ? 'mês ainda no prazo' : 'meses ainda no prazo'}:
-              </dt>
-              <dd className="text-xl">
-                <Dinheiro
-                  centavos={acumulado.totalAPedirCentavos}
-                  natureza="estimado"
-                  elegibilidade="noPrazo"
-                />
-              </dd>
-            </div>
+            {acumulado.mesesAPedir > 0 ? (
+              <div>
+                <dt className="text-base">
+                  Em {acumulado.mesesAPedir}{' '}
+                  {acumulado.mesesAPedir === 1 ? 'mês ainda no prazo' : 'meses ainda no prazo'}
+                  {acumulado.competenciasDivergentes.length > 0
+                    ? ', pelos meses que você confirmou'
+                    : ''}
+                  :
+                </dt>
+                <dd className="text-xl">
+                  <Dinheiro
+                    centavos={acumulado.totalAPedirCentavos}
+                    natureza="estimado"
+                    elegibilidade="noPrazo"
+                  />
+                </dd>
+              </div>
+            ) : (
+              /* Sem este caso a tela imprimia "Em 0 meses ainda no prazo: R$ 0,00 — no prazo",
+                 que é o anti-goal da §2 do design: zero com rótulo de prazo parecendo veredito. */
+              <p className="text-base">
+                Nenhum mês dentro do prazo de cinco anos tem valor a pedir.
+              </p>
+            )}
 
             {acumulado.mesesPrescritos > 0 && (
               <div className="text-neutral-800">
@@ -184,6 +210,16 @@ export function Veredito({
             )}
           </dl>
 
+          {acumulado.competenciasDivergentes.length > 0 && (
+            <div className="mt-3 rounded-md bg-neutral-100 px-3 py-2 text-base">
+              <p>
+                <strong>Meses a reconferir</strong> — você disse que a nossa leitura destes
+                meses não bate com o seu extrato, então eles ficaram fora do total:
+              </p>
+              <p className="mt-1">{acumulado.competenciasDivergentes.join(', ')}</p>
+            </div>
+          )}
+
           {acumulado.mesesUrgentes > 0 && (
             <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-base text-amber-950">
               {acumulado.mesesUrgentes === 1
@@ -195,9 +231,8 @@ export function Veredito({
 
           <p className="mt-3 text-base">
             Esse dinheiro segue um caminho diferente da declaração: é pedido de restituição,
-            mês a mês, no PER/DCOMP Web da Receita Federal. Procure o {SINDICATO.nome}
-            {SINDICATO.contato ? ` (${SINDICATO.contato})` : ''} antes de abrir o pedido — um
-            pedido malfeito é negado e consome o prazo.
+            mês a mês, no PER/DCOMP Web da Receita Federal. Confira os valores contra o seu
+            extrato antes de abrir o pedido — um pedido malfeito é negado e consome o prazo.
           </p>
 
         </section>
@@ -248,17 +283,7 @@ export function Veredito({
         </section>
       )}
 
-      <footer className="flex flex-col gap-1 border-t border-neutral-300 pt-4 text-sm text-neutral-800">
-        <p>
-          Este resultado é uma <strong>estimativa de triagem</strong>, não cálculo oficial nem
-          parecer jurídico ou contábil. Confira com o {SINDICATO.nome} antes de levar ao RH ou
-          pedir restituição.
-        </p>
-        <p>
-          Seu extrato <strong>não sai do seu navegador</strong>: a leitura e o cálculo
-          acontecem no seu próprio dispositivo, sem envio para nenhum servidor.
-        </p>
-      </footer>
+      <Rodape />
     </div>
   );
 }

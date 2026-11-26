@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { TelasDoResultado } from './resultado-teto';
 import { PARSE_GATILHOS, RESULTADO_GATILHOS } from '@/lib/apresentacao/__fixtures__/gatilhos';
@@ -7,7 +7,9 @@ import { PARSE_GATILHOS, RESULTADO_GATILHOS } from '@/lib/apresentacao/__fixture
 afterEach(cleanup);
 
 function montar() {
-  render(<TelasDoResultado parse={PARSE_GATILHOS} teto={RESULTADO_GATILHOS} />);
+  render(
+    <TelasDoResultado parse={PARSE_GATILHOS} teto={RESULTADO_GATILHOS} onOutroExtrato={() => {}} />,
+  );
 }
 
 describe('TelasDoResultado', () => {
@@ -52,5 +54,31 @@ describe('TelasDoResultado', () => {
     expect(
       (within(outraVez).getByRole('radio', { name: /não bate/i }) as HTMLInputElement).checked,
     ).toBe(true);
+  });
+});
+
+describe('TelasDoResultado — ler outro extrato', () => {
+  it('oferece descartar o extrato lido e ler outro, nas duas telas', () => {
+    const onOutroExtrato = vi.fn();
+    render(
+      <TelasDoResultado
+        parse={PARSE_GATILHOS}
+        teto={RESULTADO_GATILHOS}
+        onOutroExtrato={onOutroExtrato}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /outro extrato/i }));
+    expect(onOutroExtrato).toHaveBeenCalledOnce();
+
+    cleanup();
+    render(
+      <TelasDoResultado
+        parse={PARSE_GATILHOS}
+        teto={RESULTADO_GATILHOS}
+        onOutroExtrato={onOutroExtrato}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /mês a mês/i }));
+    expect(screen.getByRole('button', { name: /outro extrato/i })).toBeTruthy();
   });
 });
