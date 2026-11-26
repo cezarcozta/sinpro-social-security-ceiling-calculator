@@ -1,7 +1,7 @@
-# Especificação Técnica: Calculadora de Teto Previdenciário (Sinpro-ABC)
+# Especificação Técnica: Calculadora de Teto Previdenciário
 
 ## 1. Visão Geral do Produto
-Aplicação web destinada aos professores sindicalizados ao Sinpro-ABC para leitura automatizada do Extrato CNIS (Cadastro Nacional de Informações Sociais), cálculo de retenção de INSS acima do teto devido a múltiplos vínculos e geração de declaração preventiva para o RH.
+Aplicação web destinada a professores da rede privada para leitura automatizada do Extrato CNIS (Cadastro Nacional de Informações Sociais), cálculo de retenção de INSS acima do teto devido a múltiplos vínculos e geração de declaração preventiva para o RH.
 
 **Público-alvo:** Professores da rede privada do Grande ABC.
 **Objetivo principal:** Identificar meses de contribuição acima do teto nos últimos 5 anos de forma automatizada e segura, sem necessidade de senhas governamentais.
@@ -41,7 +41,7 @@ Aplicação web destinada aos professores sindicalizados ao Sinpro-ABC para leit
 
 ## 3. Requisitos Não Funcionais (Segurança e Arquitetura)
 
-### Privacidade e LGPD (Crucial para o Sindicato)
+### Privacidade e LGPD (Crucial)
 * **Processamento Client-Side (Recomendado):** Para máxima segurança jurídica, o parsing do PDF deve ocorrer preferencialmente no navegador do usuário (Client-side, usando bibliotecas como `pdf.js`), sem que o arquivo trafegue para um servidor back-end. 
 * Se o parsing exigir back-end (ex: Python `pdfplumber`), o arquivo PDF deve ser mantido estritamente em memória volátil, sendo descartado imediatamente após a extração dos dados (**Zero-Data Retention**).
 

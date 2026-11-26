@@ -32,9 +32,8 @@ No próprio exemplo da spec (08/2024, R$ 5.000 + R$ 4.500, teto R$ 7.786,02):
 | **Retido a maior (real)** | **58,78** |
 | Pela fórmula da `AGENTS.md` | 239,96 |
 
-A fórmula da spec erra ~4x para cima. Como o repositório é público e a ferramenta é do
-sindicato, um número inflado que não se sustenta diante do RH ou da Receita é risco de
-credibilidade. Fonte do modelo: IN RFB 2.110/2022 (arts. 36 e 49) e Decreto 3.048/99
+A fórmula da spec erra ~4x para cima. Como o repositório é público, um número inflado que
+não se sustenta diante do RH ou da Receita é risco de credibilidade. Fonte do modelo: IN RFB 2.110/2022 (arts. 36 e 49) e Decreto 3.048/99
 (art. 216), com exemplos trabalhados que reproduzem exatamente `518,82` e `908,86`.
 
 Regra confirmada:
@@ -403,7 +402,7 @@ de alguém lembrar:
 | `ignoradasSemTabela.length > 0` | Estas competências **não foram avaliadas** por estarem fora do período coberto. | lista visível, não silenciada |
 | `avisos.length > 0` | Houve linha do extrato que não entendemos. O resultado pode estar incompleto. | aviso de topo, não escondido em detalhe |
 | `decimoTerceiro === true` | O 13º tem **teto próprio**, calculado em separado do salário de dezembro. | na linha do 13º |
-| sempre | O resultado é **estimativa de triagem**, não cálculo oficial nem parecer jurídico ou contábil. Confira com o sindicato antes de levar ao RH ou pedir restituição. | rodapé permanente e no PDF da F4 |
+| sempre | O resultado é **estimativa de triagem**, não cálculo oficial nem parecer jurídico ou contábil. Confira os números contra o seu extrato antes de levar ao RH ou pedir restituição. | rodapé permanente e no PDF da F4 |
 | sempre | Nenhum dado do extrato sai do navegador. | reforço da garantia da F1, que é o que faz o professor subir o arquivo |
 
 Dois princípios por trás da tabela:

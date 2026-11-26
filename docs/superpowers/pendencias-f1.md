@@ -2,7 +2,7 @@
 
 Registradas na revisão final da F1 (2026-11-18) e deliberadamente deixadas para depois.
 Nenhuma bloqueia a F1; as duas primeiras seções são as que mais importam antes de o app
-ir ao ar para o sindicato.
+ir ao ar.
 
 ## Risco de validação: um único extrato real
 
@@ -43,8 +43,8 @@ permanece como teste de geometria verdadeira. Cenários a cobrir:
 - **Fase de conferência na UI:** mostrar a tabela mês a mês e pedir ao professor que
   confira contra o PDF antes de usar o número; rotular o resultado como estimativa.
 - **Canal de erro sem telemetria:** sem backend não há como saber que o parser falhou para
-  alguém. Um botão "o resultado não bate" que gere um texto para o professor enviar ao
-  sindicato — nenhum dado sai automaticamente, e o sindicato descobre layouts novos.
+  alguém. Um botão "o resultado não bate" que gere um texto para o professor guardar e levar
+  a quem for ajudá-lo — nenhum dado sai automaticamente.
 - **Empregado Doméstico** hoje gera aviso em vez de entrar como CLT. É segurado empregado
   do RGPS e seu salário de contribuição entra no teto, então a escolha atual falha fechada
   (avisa) em vez de subestimar em silêncio. Decisão de produto pendente.
@@ -199,11 +199,9 @@ Registradas no fim da execução do plano da F3 (2026-11-19). As telas vivem em
 
 ### Bloqueia o app ir ao ar
 
-- **O contato do sindicato é `null`.** `src/lib/apresentacao/sindicato.ts` tem o único valor
-  de espera do ciclo. A tela encaminha o professor ao Sinpro-ABC em três lugares (restituição
-  no e-CAC, divergência de leitura, veredito sem nada avaliado) e, enquanto o contato for
-  `null`, ela diz "procure o Sinpro-ABC" sem dar endereço. Trocar por e-mail ou pela página
-  antes de publicar.
+Nada. O único valor de espera do ciclo — o contato para onde a tela encaminhava o professor —
+deixou de existir em 26/11/2026, junto com o encaminhamento: a tela não tem mais
+destinatário, e os disclaimers da §9 mandam conferir os números contra o próprio extrato.
 
 ### Decisões da F3 que a F4 herda
 
@@ -220,7 +218,8 @@ Registradas no fim da execução do plano da F3 (2026-11-19). As telas vivem em
   razão social, ordem e a confirmação da remuneração atual.
 - **O texto de divergência não leva CNPJ**, por decisão de privacidade tomada na execução: um
   CNPJ de escola do Grande ABC reidentifica o professor. Se a F4 precisar do CNPJ num texto
-  que sai do dispositivo, é decisão nova.
+  que sai do dispositivo, é decisão nova. O texto também não tem destinatário: desde
+  26/11/2026 ele é "para guardar", não "para enviar".
 
 ### Abertas, não bloqueantes
 

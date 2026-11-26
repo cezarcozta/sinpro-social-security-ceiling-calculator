@@ -1752,7 +1752,7 @@ Em `src/app/layout.tsx`, ajuste os metadados:
 
 ```tsx
 export const metadata = {
-  title: 'Calculadora de Teto Previdenciário — Sinpro-ABC',
+  title: 'Calculadora de Teto Previdenciário',
   description:
     'Leia seu extrato CNIS no próprio navegador e descubra em quais meses a contribuição ao INSS passou do teto.',
 };
