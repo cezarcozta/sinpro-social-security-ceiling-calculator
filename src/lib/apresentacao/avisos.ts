@@ -1,5 +1,6 @@
 import type { ParseResult, WarningCode } from '@/lib/cnis';
 import { VIGENCIAS, type CodigoAvisoTeto, type ResultadoTeto } from '@/lib/teto';
+import { indicadoresExibiveis } from './indicadores';
 
 /**
  * Avisos das três camadas (parser, motor, indicadores do próprio INSS) traduzidos para
@@ -189,36 +190,28 @@ export function avisosExibiveis(parse: ParseResult, teto: ResultadoTeto): AvisoE
     });
   }
 
-  // Os indicadores são do próprio INSS, não códigos nossos: vão como o INSS os escreve,
-  // num aviso só, sem dicionário de tradução neste ciclo.
-  //
-  // Há indicador em dois níveis, e os dois importam: no vínculo (ex. `IREM-INDPEND`) e na
-  // competência (ex. `PREM-EXT`, `IRE-INSS` — os que a `AGENTS.md` §F1 nomeia). Olhar só o
-  // nível do vínculo esconderia justamente a marca do mês, que é onde o dinheiro está.
-  const marcas: string[] = [];
-  for (const v of parse.extrato.vinculos) {
-    if ((v.indicadores?.length ?? 0) > 0) {
-      marcas.push(`vínculo ${v.seq}: ${v.indicadores!.join(', ')}`);
-    }
-    const linhas =
-      v.natureza === 'CI_PROPRIO'
-        ? v.contribuicoes.map((c) => ({ competencia: c.competencia, indicadores: c.indicadores }))
-        : v.remuneracoes.map((r) => ({ competencia: r.competencia, indicadores: r.indicadores }));
-    for (const linha of linhas) {
-      if (linha.indicadores.length > 0) {
-        marcas.push(`${linha.competencia}: ${linha.indicadores.join(', ')}`);
-      }
-    }
-  }
-  if (marcas.length > 0) {
+  // Os indicadores do INSS entram agrupados por código, com a descrição que o próprio
+  // INSS escreveu na legenda do extrato, e só os que pedem conferência. `IREC-MEI` e
+  // `IREC-LC123` ficam de fora daqui: são o regime de recolhimento, o motor os consome, e
+  // chamá-los de pendência era avisar sobre o dado que entendemos.
+  for (const indicador of indicadoresExibiveis(parse.extrato).avisos) {
     lista.push({
-      codigo: 'INDICADORES_INSS',
+      codigo: indicador.codigo,
       frase:
-        'O INSS marcou pendência em partes do seu extrato. Isso pode afetar os valores registrados — vale conferir no extrato original.',
+        indicador.descricao === ''
+          ? 'O INSS marcou este ponto do seu extrato. Isso pode afetar os valores registrados — vale conferir no extrato original.'
+          : `O INSS marcou: ${indicador.descricao}`,
+      // `media`, inclusive para código que não classificamos: um indicador que não
+      // conhecemos pede conferência, mas não é dado perdido — e `alta` ao lado de uma
+      // tabela descartada apagaria a diferença. Falhar aberto está em aparecer e em
+      // mostrar o código cru, não em inflar a gravidade.
       gravidade: 'media',
-      conhecido: true,
+      // "Conhecido" aqui é "a tela sabe dizer o que isto é". Sem descrição na legenda ela
+      // não sabe, mesmo classificando o código — e então o `BlocoAvisos` mostra o código
+      // cru, que é o que o professor tem para conferir no extrato.
+      conhecido: indicador.classificado && indicador.descricao !== '',
       origem: 'inss',
-      detalhe: marcas.join('; '),
+      detalhe: indicador.onde,
     });
   }
 

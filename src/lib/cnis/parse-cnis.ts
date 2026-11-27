@@ -1,4 +1,5 @@
 import { agruparEmLinhas } from './rows';
+import { extrairLegenda } from './legenda';
 import { classificar, extrairCamposFiliado } from './sections';
 import { detectarLayout, type LayoutDetectado } from './layouts';
 import {
@@ -122,7 +123,10 @@ export function montarExtrato(itens: TextItem[]): ParseResult {
     );
   }
 
-  const extrato: CnisExtrato = { filiado: {}, vinculos: [] };
+  const linhas = agruparEmLinhas(itens);
+  // A legenda é lida numa passada própria: ela vive depois do fim da varredura de
+  // vínculos, e não tem nada a ver com a máquina de estados que lê as tabelas.
+  const extrato: CnisExtrato = { filiado: {}, vinculos: [], legenda: extrairLegenda(linhas) };
   const construindo: EmConstrucao[] = [];
   const warnings: ParseWarning[] = [];
   let estado: Estado = { nome: 'inicio' };
@@ -169,7 +173,7 @@ export function montarExtrato(itens: TextItem[]): ParseResult {
     }
   };
 
-  for (const linha of agruparEmLinhas(itens)) {
+  for (const linha of linhas) {
     if (estado.nome === 'fim') break;
     const tipo = classificar(linha);
 

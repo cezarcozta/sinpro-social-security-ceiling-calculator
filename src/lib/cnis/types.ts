@@ -73,6 +73,11 @@ export type CnisExtrato = {
   filiado: Filiado;
   geradoEm?: string;
   vinculos: Vinculo[];
+  /**
+   * A "Legenda de Indicadores" do próprio extrato. Vazia quando o documento não traz a
+   * seção — ausência não é erro, e quem exibe cai no código cru.
+   */
+  legenda: LegendaIndicador[];
 };
 
 export type WarningCode =
@@ -133,3 +138,9 @@ export const TIPO_FILIADO_CLT = 'Empregado ou Agente Público';
  * conferência, nunca de fonte da verdade.
  */
 export type NaturezaVinculo = 'CLT' | 'CI_PRESTADOR' | 'CI_PROPRIO';
+
+/**
+ * Uma linha da seção "Legenda de Indicadores" do extrato: o código como o INSS o escreve e
+ * a descrição que o **próprio INSS** deu a ele, naquele documento.
+ */
+export type LegendaIndicador = { codigo: string; descricao: string };

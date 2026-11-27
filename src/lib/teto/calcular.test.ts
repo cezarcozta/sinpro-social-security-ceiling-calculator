@@ -6,7 +6,7 @@ import { calcularTeto } from './calcular';
 
 const HOJE = '2026-11-19';
 
-const extratoCom = (...vinculos: Vinculo[]): CnisExtrato => ({ filiado: {}, vinculos });
+const extratoCom = (...vinculos: Vinculo[]): CnisExtrato => ({ filiado: {}, vinculos, legenda: [] });
 const rem = (competencia: string, valorCentavos: number): Remuneracao => ({
   competencia,
   valorCentavos,
@@ -144,7 +144,7 @@ describe('calcularTeto', () => {
   });
 
   it('rejeita dataReferencia impossível em vez de rolar a data em silêncio', () => {
-    const vazio: CnisExtrato = { filiado: {}, vinculos: [] };
+    const vazio: CnisExtrato = { filiado: {}, vinculos: [], legenda: [] };
     expect(() => calcularTeto(vazio, '2026-99-99')).toThrow(/dataReferencia/);
     expect(() => calcularTeto(vazio, '2026-02-30')).toThrow(/dataReferencia/);
     expect(() => calcularTeto(vazio, 'ontem')).toThrow(/dataReferencia/);
@@ -189,7 +189,7 @@ describe('calcularTeto', () => {
   });
 
   it('extrato vazio devolve resultado válido e zerado', () => {
-    const r = calcularTeto({ filiado: {}, vinculos: [] }, HOJE);
+    const r = calcularTeto({ filiado: {}, vinculos: [], legenda: [] }, HOJE);
     expect(r.competencias).toEqual([]);
     expect(r.resumo).toEqual({
       mesesComMultiplosVinculos: 0,

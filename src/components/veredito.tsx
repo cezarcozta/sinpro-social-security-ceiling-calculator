@@ -2,8 +2,10 @@ import type { ReactNode } from 'react';
 import type { ParseResult } from '@/lib/cnis';
 import type { ResultadoTeto } from '@/lib/teto';
 import { avisosExibiveis } from '@/lib/apresentacao/avisos';
+import { indicadoresExibiveis } from '@/lib/apresentacao/indicadores';
 import { derivarVeredito, type Marcas } from '@/lib/apresentacao/veredito';
 import { BlocoAvisos } from './bloco-avisos';
+import { BlocoIndicadores } from './bloco-indicadores';
 import { Dinheiro } from './dinheiro';
 import { Rodape } from './rodape';
 
@@ -33,6 +35,7 @@ export function Veredito({
 }): ReactNode {
   const { sangria, acumulado, mesesComMultiplosVinculos } = derivarVeredito(teto, marcas);
   const avisos = avisosExibiveis(parse, teto);
+  const { informativos } = indicadoresExibiveis(parse.extrato);
   const mesDaSangria = sangria.tipo === 'nenhuma' || sangria.tipo === 'nadaAvaliado' ? null : sangria.competencia;
   const competenciaDaSangria = mesDaSangria
     ? teto.competencias.find((c) => c.competencia === mesDaSangria)
@@ -42,6 +45,7 @@ export function Veredito({
   return (
     <div className="flex flex-col gap-6">
       <BlocoAvisos avisos={avisos} />
+      <BlocoIndicadores indicadores={informativos} />
 
       <section
         aria-labelledby="titulo-sangria"

@@ -27,6 +27,40 @@ describe('montarExtrato sobre o extrato de exemplo', () => {
     expect(extrato.geradoEm).toBe('18/11/2016 00:00:00');
   });
 
+  it('lê a Legenda de Indicadores da última página, com a descrição do próprio INSS', () => {
+    // Fixação contra o extrato real: é a fonte primária do significado de cada indicador,
+    // e ela chega dentro do documento. Se o INSS mudar a seção, este teste cai antes de a
+    // tela passar a mostrar descrição errada.
+    expect(extrato.legenda).toEqual([
+      { codigo: 'IREC-INDPEND', descricao: 'Recolhimentos com indicadores/pendências' },
+      {
+        codigo: 'IREC-LC123',
+        descricao: 'Recolhimento no Plano Simplificado de Previdência Social (LC 123/2006)',
+      },
+      {
+        codigo: 'IREC-MEI',
+        descricao: 'Indica que a contribuição da competência foi recolhida com código MEI',
+      },
+      { codigo: 'IREM-INDPEND', descricao: 'Remunerações com indicadores/pendências' },
+      {
+        codigo: 'PSC-MEN-SM-EC103',
+        descricao:
+          'Pendência na competência em que o somatório dos salários de contribuição é menor que o mínimo. Competência pode ser passível de complementação, utilização ou agrupamento, de acordo com a EC 103/2019.',
+      },
+    ]);
+  });
+
+  it('a legenda cobre todo indicador que aparece nos vínculos do extrato', () => {
+    const usados = new Set<string>();
+    for (const v of extrato.vinculos) {
+      for (const c of v.indicadores ?? []) usados.add(c);
+      const linhas = v.natureza === 'CI_PROPRIO' ? v.contribuicoes : v.remuneracoes;
+      for (const l of linhas) for (const c of l.indicadores) usados.add(c);
+    }
+    const descritos = new Set(extrato.legenda.map((l) => l.codigo));
+    expect([...usados].filter((c) => !descritos.has(c))).toEqual([]);
+  });
+
   it('devolve os 5 vínculos com a natureza de cada um', () => {
     const { extrato } = montarExtrato(itens);
     expect(extrato.vinculos.map((v) => [v.seq, v.natureza])).toEqual([

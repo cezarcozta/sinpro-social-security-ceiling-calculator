@@ -236,10 +236,12 @@ destinatário, e os disclaimers da §9 mandam conferir os números contra o pró
 - **Impressão não foi vista num navegador.** A folha `@media print` está escrita e os
   controles marcados `.no-print`, mas ninguém imprimiu. É o item de menor prioridade do
   ciclo, declarado assim no design.
-- **`AvisoTeto.codigo` virou união** (`CodigoAvisoTeto`), o que torna o dicionário de frases
-  exaustivo em tempo de compilação. O `ParseWarning.codigo` da F1 já era união. Falta o mesmo
-  para os **indicadores do INSS**, que hoje saem como o INSS os escreve, sem tradução — foi
-  decisão de escopo, não esquecimento.
+- ~~**Falta tradução para os indicadores do INSS.**~~ **Fechado em 26/11/2026.** `AvisoTeto.codigo`
+  virou união (`CodigoAvisoTeto`), o que torna o dicionário de frases exaustivo em tempo de
+  compilação; o `ParseWarning.codigo` da F1 já era união. Os **indicadores do INSS** não
+  ganharam união — ganharam fonte: o extrato traz a seção "Legenda de Indicadores" na última
+  página, onde o próprio INSS descreve os códigos que aquele documento usa. Ver a seção
+  "Indicadores do INSS" abaixo.
 - **A verificação ponta a ponta usa o extrato de exemplo, que é todo anterior a 2021** (as
   datas foram deslocadas na anonimização). Ela prova o caminho "nada avaliado" com dado real;
   os caminhos com dinheiro são provados pela fixture de gatilhos, não por dado real. Um
@@ -273,3 +275,52 @@ número na tela.
   cumpriria "falhar aberto" na borda.
 - **`achados` sem fallback para `tipo` desconhecido**, ao contrário do cuidado que a §6.5
   tomou com avisos. Hoje o motor emite um tipo só, então falha fechado sem consequência.
+
+## Indicadores do INSS (26/11/2026)
+
+Fora de ciclo, a partir de um defeito visto na tela: o bloco de avisos dizia "o INSS marcou
+pendência" sobre `IREC-MEI` e `IREC-LC123`, que **não são pendência** — são o regime de
+recolhimento, e `teto/cascata.ts` os lê para derivar a alíquota (5% e 11%). A tela avisava
+sobre exatamente o dado que o motor entendeu e usou, em 400 caracteres de `competência:
+código` repetidos mês a mês.
+
+### O que mudou
+
+- **A legenda vem do próprio extrato.** `src/lib/cnis/legenda.ts` lê a seção "Legenda de
+  Indicadores" da última página, numa passada separada da máquina de estados dos vínculos.
+  Isso dispensa dicionário nosso: a legenda é sempre completa para aquele documento, é
+  escrita pelo INSS, e não envelhece quando o INSS criar código novo. `CnisExtrato.legenda`
+  é `LegendaIndicador[]`, vazia quando o documento não traz a seção — ausência não é erro.
+- **A classificação é nossa, por código**, em `apresentacao/indicadores.ts`: `IREC-MEI` e
+  `IREC-LC123` são informativos (o motor os consome), o resto da lista é aviso, e código
+  fora da lista vira aviso — falhar aberto.
+- **Dois blocos na tela.** Os informativos saíram do `BlocoAvisos` para o `BlocoIndicadores`,
+  neutro e fechado por padrão.
+
+### Decisões a conhecer antes de mexer
+
+- **A coluna de descrição é medida na primeira descrição lida, não no rótulo do cabeçalho.**
+  No extrato de exemplo o rótulo `Descrição` da direita está em x=540 e o texto em x=555;
+  confiar no rótulo perdia toda continuação daquela coluna.
+- **A legenda termina na primeira linha que não contribui com nada.** É o que impede o aviso
+  de autenticidade do rodapé, alguns pixels à esquerda da coluna, de virar continuação da
+  descrição do último indicador. Mobília de página (paginação, cabeçalho, filiado) é pulada
+  sem encerrar, para a legenda poder atravessar a quebra.
+- **`conhecido` no `AvisoExibivel` passou a significar "a tela sabe dizer o que isto é"**:
+  é `false` também quando classificamos o código mas o extrato não trouxe legenda. Sem
+  descrição, a tela mostra o código cru — que é o que o professor tem para conferir.
+- **A gravidade dos avisos de indicador é `media`, inclusive para código desconhecido.** Um
+  indicador que não conhecemos pede conferência, mas não é dado perdido, e `alta` ao lado de
+  uma tabela descartada apagaria a diferença. Falhar aberto está em aparecer e em mostrar o
+  código, não em inflar a gravidade.
+
+### Abertas
+
+- **A lista `AVISOS` em `indicadores.ts` é manual.** Código novo do INSS cai em aviso com a
+  descrição da legenda, que é o comportamento certo, mas quem for classificá-lo precisa
+  editar a lista. Não há união de tipos que force isso, porque os códigos vêm do PDF.
+- **Só um extrato real valida a geometria da legenda.** Os testes sintéticos cobrem coluna
+  dupla, continuação de linha, quebra de página e ausência de legenda; não cobrem legenda em
+  layout diferente, que é o mesmo risco de validação que a F1 registrou.
+- **`PSC-MEN-SM`, `IREC-LC123-SUP`, `PREM-EXT` e `IRE-INSS` estão classificados como aviso
+  mas não são interpretados** pelo motor. Continuam valendo as pendências da F2 sobre eles.

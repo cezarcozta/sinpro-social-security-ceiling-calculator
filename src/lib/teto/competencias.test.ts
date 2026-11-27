@@ -4,7 +4,7 @@ import { montarExtrato } from '../cnis/parse-cnis';
 import type { CnisExtrato, Contribuicao, Remuneracao, TextItem, Vinculo } from '../cnis/types';
 import { agruparPorCompetencia } from './competencias';
 
-const extratoCom = (...vinculos: Vinculo[]): CnisExtrato => ({ filiado: {}, vinculos });
+const extratoCom = (...vinculos: Vinculo[]): CnisExtrato => ({ filiado: {}, vinculos, legenda: [] });
 
 const rem = (competencia: string, valorCentavos: number, indicadores: string[] = []): Remuneracao => ({
   competencia,
@@ -104,7 +104,7 @@ describe('agruparPorCompetencia', () => {
   });
 
   it('extrato sem vínculo e vínculo sem competências devolvem listas vazias', () => {
-    expect(agruparPorCompetencia({ filiado: {}, vinculos: [] }).competencias).toEqual([]);
+    expect(agruparPorCompetencia({ filiado: {}, vinculos: [], legenda: [] }).competencias).toEqual([]);
     expect(agruparPorCompetencia(extratoCom(clt(1), proprio(2))).competencias).toEqual([]);
   });
 

@@ -17,7 +17,7 @@ const TETO_VAZIO: ResultadoTeto = {
   },
 };
 
-const PARSE_VAZIO: ParseResult = { extrato: { filiado: {}, vinculos: [] }, warnings: [] };
+const PARSE_VAZIO: ParseResult = { extrato: { filiado: {}, vinculos: [], legenda: [] }, warnings: [] };
 
 const vinculo = (seq: number, indicadores?: string[]): Vinculo => ({
   seq,
@@ -65,19 +65,51 @@ describe('avisosExibiveis', () => {
     expect(aviso.origem).toBe('motor');
   });
 
-  it('junta os indicadores do INSS num aviso só, com os códigos como o INSS escreve', () => {
+  it('dá um aviso por indicador do INSS, agrupando os vínculos de cada um', () => {
     const parse: ParseResult = {
       extrato: {
         filiado: {},
-        vinculos: [vinculo(1, ['PREM-EXT']), vinculo(2, ['IREM-INDPEND', 'IRE-INSS']), vinculo(3)],
+        legenda: [],
+        vinculos: [vinculo(1, ['PREM-EXT']), vinculo(2, ['IREM-INDPEND', 'PREM-EXT']), vinculo(3)],
       },
       warnings: [],
     };
     const doInss = avisosExibiveis(parse, TETO_VAZIO).filter((a) => a.origem === 'inss');
-    expect(doInss).toHaveLength(1);
-    expect(doInss[0].detalhe).toContain('PREM-EXT');
-    expect(doInss[0].detalhe).toContain('IRE-INSS');
-    expect(doInss[0].gravidade).toBe('media');
+    expect(doInss.map((a) => a.codigo).sort()).toEqual(['IREM-INDPEND', 'PREM-EXT']);
+    expect(doInss.find((a) => a.codigo === 'PREM-EXT')!.detalhe).toBe('vínculos 1 e 2');
+    expect(doInss.every((a) => a.gravidade === 'media')).toBe(true);
+  });
+
+  it('sem legenda no extrato, o aviso do INSS sai com o código cru para conferir', () => {
+    const parse: ParseResult = {
+      extrato: { filiado: {}, legenda: [], vinculos: [vinculo(1, ['PREM-EXT'])] },
+      warnings: [],
+    };
+    expect(avisosExibiveis(parse, TETO_VAZIO).find((a) => a.codigo === 'PREM-EXT')!.conhecido).toBe(
+      false,
+    );
+  });
+
+  it('com legenda, o aviso usa a descrição que o próprio INSS escreveu', () => {
+    const parse: ParseResult = {
+      extrato: {
+        filiado: {},
+        legenda: [{ codigo: 'PREM-EXT', descricao: 'Remuneração extemporânea' }],
+        vinculos: [vinculo(1, ['PREM-EXT'])],
+      },
+      warnings: [],
+    };
+    const aviso = avisosExibiveis(parse, TETO_VAZIO).find((a) => a.codigo === 'PREM-EXT')!;
+    expect(aviso.frase).toContain('Remuneração extemporânea');
+    expect(aviso.conhecido).toBe(true);
+  });
+
+  it('não chama de pendência o regime de recolhimento que o motor consome', () => {
+    const parse: ParseResult = {
+      extrato: { filiado: {}, legenda: [], vinculos: [vinculo(1, ['IREC-MEI', 'IREC-LC123'])] },
+      warnings: [],
+    };
+    expect(avisosExibiveis(parse, TETO_VAZIO).filter((a) => a.origem === 'inss')).toEqual([]);
   });
 
   it('diz a competência do aviso do motor e a página do aviso do parser', () => {
@@ -100,6 +132,7 @@ describe('avisosExibiveis', () => {
     const parse: ParseResult = {
       extrato: {
         filiado: {},
+        legenda: [],
         vinculos: [
           {
             seq: 1,
@@ -115,7 +148,10 @@ describe('avisosExibiveis', () => {
     };
     const [aviso] = avisosExibiveis(parse, TETO_VAZIO);
     expect(aviso.origem).toBe('inss');
-    expect(aviso.detalhe).toBe('09/2026: PREM-EXT');
+    expect(aviso.codigo).toBe('PREM-EXT');
+    // O `detalhe` é só onde aconteceu: o código vive em `codigo`, e a tela o imprime
+    // quando não sabe descrevê-lo.
+    expect(aviso.detalhe).toBe('09/2026');
   });
 
   it('extrato sem aviso nenhum devolve lista vazia', () => {
